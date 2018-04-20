@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <unistd.h>
+#include <ctype.h>
 
 void * connection_handler(void*);
 void * accept_clients();
@@ -37,11 +38,42 @@ void * connection_handler(void * sock){
 	int socket = *(int*) sock;
 	int bytes;
 	char buffer[256];
-	while((bytes = read(socket, buffer, 255)) > 0){
-		buffer[bytes] = '\0';
-		//do handling
-	}
-	close(socket);
+	int isFirst = 1;
+        char command;
+        char flags[3];
+        char * data;
+
+        while((bytes = read(socket, buffer, 255)) > 0){
+                if(isFirst == 1){
+                        switch(buffer[0]){
+                                case 'o':
+                                        command = buffer[0];
+                                        flags[0] = buffer[2];
+                                        flags[1] = buffer[3];
+                                        flags[2] = '\0';
+
+                                        int i = 5;
+                                        while(isdigit(buffer[i])){
+                                                i++;
+                                        }
+                                        char * num = calloc((i-5) + 1, sizeof(char));
+                                        memcpy(num, &buffer[5], i-5);
+                                        int datasize = atoi(num);
+                                        free(num);
+
+                                        data = calloc(datasize, sizeof(char));
+                                        sprintf(data, "%s", &buffer[i+1]);
+
+                                        isFirst = 0;
+                                        break;
+                        }
+                }
+                else{
+                        sprintf(data + strlen(data), "%s", buffer);
+                }
+        }
+        printf("Command: %c, Flag: %s, Data: %s", command, flags, data);
+        close(socket);
 	pthread_exit(NULL);
 }
 
