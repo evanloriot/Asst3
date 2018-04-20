@@ -1,5 +1,5 @@
-TARGET = netfileserver
-OBJECTS = netfileserver.o 
+TARGET = client
+OBJECTS = netfileserver.o libnetfiles.o client.o
 FLAGS = -Wall -g 
 
 $(TARGET): $(OBJECTS)
@@ -12,5 +12,5 @@ clean:
 	gcc $(FLAGS) -c $<
 
 libnetfiles.o: libnetfiles.h
-
+client.o: libnetfiles.h
 
