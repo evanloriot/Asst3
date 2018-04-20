@@ -7,9 +7,11 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <string.h>
+#include <fcntl.h>
+#include <math.h>
 
-#define READ_ONLY 0
 char *hst;
+int globalfd;
 
 //check if hostname is available
 int netserverinit(char *hostname) {
@@ -55,22 +57,44 @@ int connectToServer(char* hostname) {
 
 //tells server to open file and reports file descriptor
 int netopen(char *pathname, int flags) {
+	char *mode;
+	switch(flags) {
+		case O_RDONLY:
+		mode = "ro";
+		break;
+		case O_WRONLY:
+		mode = "wo";
+		break;
+		case O_RDWR:
+		mode = "rw";
+		break;
+	}	
 	int serverfd = connectToServer(hst);
 	char *msgrecv;
 	char msg[256];
-	strcpy(msg, "open ");
+	int pnlen = strlen(pathname);
+	char *pathlen;
+	sprintf(pathlen, "%d", pnlen);
+	double initmsglen = 4 + strlen(mode) + pnlen; 
+	int appendlen = (int)log10(initmsglen);
+	int totallen = initmsglen + appendlen;
+	char *msglen;
+	sprintf(msglen, "%d", totallen);
+	strcpy(msg, totallen);
+	strcpy(msg, "/o/");
+	strcpy(msg, mode);
+	strcpy(msg, "/");
+	strcpy(msg, pathlen);
+	strcpy(msg, "/");
 	strcpy(msg, pathname);
-	strcpy(msg, " ");
-	if(flags == 0); //Read only
-		strcpy(msg, "ro ");
 	if(send(serverfd, msg, 256, strlen(msg)) < 0) //Sends message to server
 		printf("Send failed\n");
 	if(recv(serverfd, &msgrecv, 256, 0) < 0) //Receives message from server
 		printf("Receive failed\n");
-
 	int fd = atoi(msgrecv);
 	if(fd == -1)
 		printf("File not found\n");
+	globalfd = fd;
 	return fd;
 }
 
@@ -79,8 +103,8 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 	unsigned int size = (unsigned int) nbyte;
 	int serverfd = connectToServer(hst); //connect to server
 	char msg[256];
-	char msgrecv[256];
-	strcpy(msg, "read ");
+	char msgrecv[256];	
+	strcpy(msg, "r/");
 	sprintf(msg, "%d", size);
 	strcpy(msg, " ");
 	if(send(serverfd, msg, 256, strlen(msg)) < 0) //send message to server
@@ -129,7 +153,6 @@ int netclose(int fd) {
 	return result;
 }
 	
-
 
 
 
