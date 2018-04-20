@@ -2,7 +2,7 @@ TARGET1 = netfileserver
 TARGET2 = client
 OBJECTS1 = netfileserver.o
 OBJECTS2 = libnetfiles.o client.o
-FLAGS = -Wall -g 
+FLAGS = -Wall -g -lm 
 
 all: $(TARGET1) $(TARGET2)
 

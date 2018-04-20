@@ -6,16 +6,12 @@
 #include <netdb.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include "libnetfiles.h"
 
 int main(){
-	printf("%d", netserverinit("ls.cs.rutgers.edu"));
-	int sock = connectToServer("ls.cs.rutgers.edu");
-
-
-	char buffer[256];
-	fgets(buffer, 256, stdin);
-	write(sock, buffer, strlen(buffer));
-	close(sock);
+	netserverinit("cd.cs.rutgers.edu");
+	int fd = netopen("../test/test.c", O_RDONLY);
+	printf("%d\n", fd);
 	return 0;
 }

@@ -98,7 +98,7 @@ int netopen(char *pathname, int flags) {
 		break;
 	}	
 	int serverfd = connectToServer(hst);
-	char *msgrecv;
+	char *msgrecv = calloc(256, sizeof(char));
 	char *msg = calloc(256, sizeof(char));
 	int pnlen = strlen(pathname);
 	char *pathlen = calloc(pnlen, sizeof(char));
@@ -109,14 +109,15 @@ int netopen(char *pathname, int flags) {
 	strcat(msg, pathlen);
 	strcat(msg, "/");
 	strcat(msg, pathname);
-	if(write(serverfd, msg, strlen(msg)) < 0) //Sends message to server
+	if(send(serverfd, msg, strlen(msg), 0) < 0) //Sends message to server
 		printf("Send failed\n");
-	if(recv(serverfd, &msgrecv, 256, 0) < 0) //Receives message from server
+	if(recv(serverfd, msgrecv, 256, 0) < 0) //Receives message from server
 		printf("Receive failed\n");
 	int fd = atoi(msgrecv);
 	if(fd == -1)
 		printf("File not found\n");
 	globalfd = fd;
+	close(serverfd);
 	return fd;
 }
 
@@ -199,15 +200,4 @@ int netclose(int fd) {
 	else printf("Close failed\n");
 	return result;
 }
-
-
-
-
-
-
-
-
-
-
-
 
