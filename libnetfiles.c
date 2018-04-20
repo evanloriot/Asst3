@@ -73,21 +73,21 @@ int netopen(char *pathname, int flags) {
 	char *msgrecv;
 	char msg[256];
 	int pnlen = strlen(pathname);
-	char *pathlen;
+	char *pathlen = calloc(pnlen, sizeof(char));
 	sprintf(pathlen, "%d", pnlen);
 	int initmsglen = 5 + strlen(mode) + pnlen + (int)ceil(log10(pnlen)); 
 	int appendlen = (int)ceil(log10(initmsglen));
 	int totallen = initmsglen + appendlen;
-	char *msglen;
+	char *msglen = calloc(totallen, sizeof(char));
 	sprintf(msglen, "%d", totallen);
-	strcpy(msg, totallen);
+	strcpy(msg, msglen);
 	strcpy(msg, "/o/");
 	strcpy(msg, mode);
 	strcpy(msg, "/");
 	strcpy(msg, pathlen);
 	strcpy(msg, "/");
 	strcpy(msg, pathname);
-	if(send(serverfd, msg, 256, strlen(msg)) < 0) //Sends message to server
+	if(write(serverfd, msg, strlen(msg)) < 0) //Sends message to server
 		printf("Send failed\n");
 	if(recv(serverfd, &msgrecv, 256, 0) < 0) //Receives message from server
 		printf("Receive failed\n");
@@ -100,21 +100,27 @@ int netopen(char *pathname, int flags) {
 
 //tells server to read file and reports number of bytes read
 ssize_t netread(int fildes, void *buf, size_t nbyte) {
-	unsigned int size = (unsigned int) nbyte;
+/*	unsigned int size = (unsigned int) nbyte;
 	int serverfd = connectToServer(hst); //connect to server
 	char msg[256];
-	char msgrecv[256];	
+	char msgrecv[256];
+	global = 
 	char *fdstr;
 	sprintf(fdstr, "%d", globalfd);
 	int fdlen = strlen(fdstr);
 	char *nbytestr;
-	sprintf(nbytestr, "%d", nbyte);
+	sprintf(nbytestr, "%d", size);
 	int nbytelen = strlen(nbytestr);
-	
-	strcpy(msg, "r/");
-	sprintf(msg, "%d", size);
-	strcpy(msg, " ");
-	if(send(serverfd, msg, 256, strlen(msg)) < 0) //send message to server
+	int initmsglen = 4 + fdlen + nbytelen;
+	int totallen = initmsglen + (int)ceil(log10(initmsglen));
+	char *totallenstr;
+	sprintf(totallenstr, "%d", totallen);
+	strcpy(msg, totallenstr);	
+	strcpy(msg, "/r/");
+	strcpy(msg, fdstr);
+	strcpy(msg, "/");
+	strcpy(msg, nbytestr);
+	if(write(serverfd, msg, strlen(msg)) < 0) //send message to server
 		printf("Send failed\n");
 	if(recv(serverfd, &msgrecv, 256, 0) < 0) //receive message
 		printf("Receive failed\n");
@@ -122,7 +128,7 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 	int bytesread = atoi(msgrecv);
 	if(bytesread == -1)
 		printf("Read error\n");
-	return (ssize_t) bytesread;
+	return (ssize_t) bytesread;*/
 }
 
 ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
