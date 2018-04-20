@@ -63,10 +63,9 @@ int netopen(char *pathname, int flags) {
 	strcpy(msg, " ");
 	if(flags == 0); //Read only
 		strcpy(msg, "ro ");
-	char buf[256];
 	if(send(serverfd, msg, 256, strlen(msg)) < 0) //Sends message to server
 		printf("Send failed\n");
-	if(recv(serverfd, msgrecv, 256, 0) < 0) //Receives message from server
+	if(recv(serverfd, &msgrecv, 256, 0) < 0) //Receives message from server
 		printf("Receive failed\n");
 
 	int fd = atoi(msgrecv);
@@ -76,17 +75,17 @@ int netopen(char *pathname, int flags) {
 }
 
 //tells server to read file and reports number of bytes read
-ssize_t netread(int fildes, const void *buf, size_t nbyte) {
+ssize_t netread(int fildes, void *buf, size_t nbyte) {
 	unsigned int size = (unsigned int) nbyte;
 	int serverfd = connectToServer(hst); //connect to server
 	char msg[256];
 	char msgrecv[256];
 	strcpy(msg, "read ");
-	strcpy(msg, sprintf(msg, "%d", size));
+	sprintf(msg, "%d", size);
 	strcpy(msg, " ");
 	if(send(serverfd, msg, 256, strlen(msg)) < 0) //send message to server
 		printf("Send failed\n");
-	if(recv(serverfd, msgrecv, 256, 0) < 0) //receive message
+	if(recv(serverfd, &msgrecv, 256, 0) < 0) //receive message
 		printf("Receive failed\n");
 	strcpy(buf, msgrecv);
 	int bytesread = atoi(msgrecv);
@@ -102,10 +101,10 @@ ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
 	strcpy(msg, "write ");
 	strcpy(msg, buf);
 	strcpy(msg, " ");
-	strcpy(msg, sprintf(msg, nbyte));
+	sprintf(msg, "%d", (unsigned int)nbyte);
 	if(send(serverfd, msg, 256, strlen(msg)) < 0)
 		printf("Send failed\n");
-	if(recv(serverfd, msgrecv, 256, 0) < 0)
+	if(recv(serverfd, &msgrecv, 256, 0) < 0)
 		printf("Receive failed\n");
 	int byteswritten = atoi(msgrecv);
 	if(byteswritten == -1)
@@ -115,9 +114,10 @@ ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
 
 int netclose(int fd) {
 	int serverfd = connectToServer(hst);
-	char * msg;
-//	char* msg = sprintf(fd);
+	char  msg[256];
 	char msgrecv[256];
+	strcpy(msg, "close ");
+	sprintf(msg, "%d", fd);
 	if(send(serverfd, msg, 256, strlen(msg)) < 0)
 		printf("Send failed\n");
 	if(recv(serverfd, msgrecv, 256, 0) < 0)
