@@ -75,13 +75,7 @@ int netopen(char *pathname, int flags) {
 	int pnlen = strlen(pathname);
 	char *pathlen = calloc(pnlen, sizeof(char));
 	sprintf(pathlen, "%d", pnlen);
-	int initmsglen = 5 + strlen(mode) + pnlen + (int)ceil(log10(pnlen)); 
-	int appendlen = (int)ceil(log10(initmsglen));
-	int totallen = initmsglen + appendlen;
-	char *msglen = calloc(totallen, sizeof(char));
-	sprintf(msglen, "%d", totallen);
-	strcpy(msg, msglen);
-	strcpy(msg, "/o/");
+	strcpy(msg, "o/");
 	strcpy(msg, mode);
 	strcpy(msg, "/");
 	strcpy(msg, pathlen);
@@ -100,23 +94,18 @@ int netopen(char *pathname, int flags) {
 
 //tells server to read file and reports number of bytes read
 ssize_t netread(int fildes, void *buf, size_t nbyte) {
-/*	unsigned int size = (unsigned int) nbyte;
+	unsigned int size = (unsigned int) nbyte;
 	int serverfd = connectToServer(hst); //connect to server
 	char msg[256];
 	char msgrecv[256];
-	global = 
-	char *fdstr;
-	sprintf(fdstr, "%d", globalfd);
-	int fdlen = strlen(fdstr);
-	char *nbytestr;
-	sprintf(nbytestr, "%d", size);
-	int nbytelen = strlen(nbytestr);
-	int initmsglen = 4 + fdlen + nbytelen;
-	int totallen = initmsglen + (int)ceil(log10(initmsglen));
-	char *totallenstr;
-	sprintf(totallenstr, "%d", totallen);
-	strcpy(msg, totallenstr);	
-	strcpy(msg, "/r/");
+	globalfd = -1 * globalfd;
+	int fdlen = (int)ceil(log10((double)globalfd)) + 1;
+	globalfd = -1 * globalfd;
+	char *fdstr = calloc(fdlen, sizeof(char));
+	int nbytelen = (int)ceil(log10((double)size));
+	char *nbytestr = calloc(nbytelen, sizeof(char));
+	sprintf(nbytestr, "%d", size);	
+	strcpy(msg, "r/");
 	strcpy(msg, fdstr);
 	strcpy(msg, "/");
 	strcpy(msg, nbytestr);
@@ -128,14 +117,15 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 	int bytesread = atoi(msgrecv);
 	if(bytesread == -1)
 		printf("Read error\n");
-	return (ssize_t) bytesread;*/
+	return (ssize_t) bytesread;
 }
 
 ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
-	int serverfd = connectToServer(hst);
+/*	int serverfd = connectToServer(hst);
 	char msg[256];
 	char msgrecv[256];
-	strcpy(msg, "write ");
+	int buflen =
+	strcpy(msg, "w/");
 	strcpy(msg, buf);
 	strcpy(msg, " ");
 	sprintf(msg, "%d", (unsigned int)nbyte);
@@ -146,7 +136,7 @@ ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
 	int byteswritten = atoi(msgrecv);
 	if(byteswritten == -1)
 		printf("Write error\n");
-	return (ssize_t) byteswritten;
+	return (ssize_t) byteswritten;*/
 }
 
 int netclose(int fd) {
