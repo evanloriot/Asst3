@@ -4,7 +4,7 @@ OBJECTS1 = netfileserver.o
 OBJECTS2 = libnetfiles.o client.o
 FLAGS = -Wall -g 
 
-all: $(TARGET2) $(TARGET2)
+all: $(TARGET1) $(TARGET2)
 
 $(TARGET1): $(OBJECTS1)
 	gcc $(FLAGS) -lpthread -o $@ $^
