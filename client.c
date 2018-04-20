@@ -5,8 +5,13 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <string.h>
+#include <unistd.h>
+#include "libnetfiles.h"
 
 int main(){
+	netserverinit("ls.cs.rutgers.edu");
+
+
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock < 0){
 		perror("Error, could not open socket.");
@@ -34,8 +39,7 @@ int main(){
 
 	char buffer[256];
 	fgets(buffer, 256, stdin);
-	int bytes;
-	bytes = write(sock, buffer, strlen(buffer));
+	write(sock, buffer, strlen(buffer));
 	close(sock);
 	return 0;
 }
