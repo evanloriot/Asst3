@@ -9,9 +9,25 @@
 #include <signal.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <math.h>
 
 void * connection_handler(void*);
 void * accept_clients();
+
+typedef struct _file {
+	int fd;
+	struct _file * next;
+} file;
+
+typedef struct _client {
+	char * ip;
+	file * files;
+	struct _client * next;
+} client;
+
+client * clients;
 
 int main(){
 	pthread_t server_thread;
@@ -36,6 +52,17 @@ int main(){
 
 void * connection_handler(void * sock){
 	int socket = *(int*) sock;
+
+	struct sockaddr_in addr;
+    	socklen_t addr_size = sizeof(struct sockaddr_in);
+    	int res = getpeername(socket, (struct sockaddr *)&addr, &addr_size);
+	if(res == -1){
+		perror("Error, unable to determine IP address of client.");
+		pthread_exit(NULL);
+	}
+    	char clientip[20];
+    	strcpy(clientip, inet_ntoa(addr.sin_addr));
+
 	int bytes;
 	char buffer[256];
 	int isFirst = 1;
@@ -43,7 +70,8 @@ void * connection_handler(void * sock){
         char flags[3];
         char * data;
 
-        while((bytes = read(socket, buffer, 255)) > 0){
+        if((bytes = recv(socket, buffer, 255, 0)) > 0){
+		buffer[255] = '\0';
                 if(isFirst == 1){
                         switch(buffer[0]){
                                 case 'o':
@@ -66,13 +94,64 @@ void * connection_handler(void * sock){
 
                                         isFirst = 0;
                                         break;
+				default:
+					break;
                         }
                 }
                 else{
                         sprintf(data + strlen(data), "%s", buffer);
                 }
         }
-        printf("Command: %c, Flag: %s, Data: %s", command, flags, data);
+	switch(command){
+		case 'o':{
+			client * c = clients;
+			while(c != NULL){
+				if(strcmp(c->ip, clientip) == 0){
+					break;
+				}
+				c = c->next;
+			}
+			if(c == NULL){
+				c = malloc(sizeof(client));
+				c->ip = calloc(strlen(clientip), sizeof(char));
+				sprintf(c->ip, "%s", clientip);
+				c->next = clients;
+				c->files = NULL;
+				clients = c;
+			}
+			int fd;
+			if(strcmp(flags, "rw") == 0){
+				fd = open(data, O_RDWR);
+			}
+			else if(strcmp(flags, "wo") == 0){
+				fd = open(data, O_WRONLY);
+			}
+			else{
+				fd = open(data, O_RDONLY);
+			}
+			if(fd == -1){
+				perror("Error, file does not exist.");
+				pthread_exit(NULL);
+			}
+			//consider handling fd already open...
+			file * f = malloc(sizeof(file));
+			f->fd = fd;
+			f->next = c->files;
+			c->files = f;
+			
+			printf("%d\n", fd);	
+		
+			fd = fd + 1;
+
+			char * s = calloc((int)ceil(log10((double)fd))+2, sizeof(char));
+			sprintf(s, "-%d\n", fd);
+			if(send(socket, s, strlen(s), 0) < 0){
+				perror("Error, unable to send file descriptor to client.");
+				pthread_exit(NULL);
+			}
+			break;
+		}
+	}
         close(socket);
 	pthread_exit(NULL);
 }
@@ -115,7 +194,7 @@ void * accept_clients(){
 	pthread_t thread;
 	
 	int client;
-	while( (client = accept(sock, (struct sockaddr*) &clientSocket, (socklen_t*) &client_address_length)) ){
+	while((client = accept(sock, (struct sockaddr*) &clientSocket, (socklen_t*) &client_address_length)) != -1){
 		if(pthread_create(&thread, NULL, connection_handler, (void*) &client) != 0){
 			perror("Error, could not create thread.");
 			close(client);
