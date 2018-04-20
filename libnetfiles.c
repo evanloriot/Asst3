@@ -75,8 +75,8 @@ int netopen(char *pathname, int flags) {
 	int pnlen = strlen(pathname);
 	char *pathlen;
 	sprintf(pathlen, "%d", pnlen);
-	double initmsglen = 4 + strlen(mode) + pnlen; 
-	int appendlen = (int)log10(initmsglen);
+	int initmsglen = 5 + strlen(mode) + pnlen + (int)ceil(log10(pnlen)); 
+	int appendlen = (int)ceil(log10(initmsglen));
 	int totallen = initmsglen + appendlen;
 	char *msglen;
 	sprintf(msglen, "%d", totallen);
@@ -104,6 +104,13 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 	int serverfd = connectToServer(hst); //connect to server
 	char msg[256];
 	char msgrecv[256];	
+	char *fdstr;
+	sprintf(fdstr, "%d", globalfd);
+	int fdlen = strlen(fdstr);
+	char *nbytestr;
+	sprintf(nbytestr, "%d", nbyte);
+	int nbytelen = strlen(nbytestr);
+	
 	strcpy(msg, "r/");
 	sprintf(msg, "%d", size);
 	strcpy(msg, " ");
