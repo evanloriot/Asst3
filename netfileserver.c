@@ -68,9 +68,10 @@ void * connection_handler(void * sock){
 	int isFirst = 1;
         char command;
         char flags[3];
-        char * data;
-
-        if((bytes = recv(socket, buffer, 255, 0)) > 0){
+        char * data = NULL;
+	int datasize;
+	int read = 0;
+        while((bytes = recv(socket, buffer, 255, 0)) > 0){
 		buffer[255] = '\0';
                 if(isFirst == 1){
                         switch(buffer[0]){
@@ -86,11 +87,13 @@ void * connection_handler(void * sock){
                                         }
                                         char * num = calloc((i-5) + 1, sizeof(char));
                                         memcpy(num, &buffer[5], i-5);
-                                        int datasize = atoi(num);
+                                        datasize = atoi(num);
                                         free(num);
 
                                         data = calloc(datasize, sizeof(char));
                                         sprintf(data, "%s", &buffer[i+1]);
+					
+					read = strlen(&buffer[i+1]);
 
                                         isFirst = 0;
                                         break;
@@ -98,10 +101,18 @@ void * connection_handler(void * sock){
 					break;
                         }
                 }
-                else{
-                        sprintf(data + strlen(data), "%s", buffer);
-                }
+		else{
+			if(datasize - strlen(data) < 256){
+				buffer[datasize - strlen(data)] = '\0';
+			}
+			sprintf(data + strlen(data), "%s", buffer);
+			read += strlen(buffer);
+		}
+		if(read == datasize){
+			break;
+		}
         }
+	
 	switch(command){
 		case 'o':{
 			client * c = clients;
@@ -130,17 +141,33 @@ void * connection_handler(void * sock){
 				fd = open(data, O_RDONLY);
 			}
 			if(fd == -1){
-				perror("Error, file does not exist.");
-				pthread_exit(NULL);
+				switch(errno){
+					case EACCES:
+						send(socket, "-1/6/eacces", 11, 0);
+						break;
+					case EINTR:
+						send(socket, "-1/5/eintr", 10, 0);
+						break;
+					case EISDIR:
+						send(socket, "-1/6/eisdir", 11, 0);
+						break;
+					case ENOENT:
+						send(socket, "-1/6/enoent", 11, 0);
+						break;
+					case EROFS:
+						send(socket, "-1/5/erofs", 10, 0);
+						break;
+					default: perror("Unexpected error occurred\n"); pthread_exit(NULL); break;
+				}
+				break;
 			}
+
 			//consider handling fd already open...
 			file * f = malloc(sizeof(file));
 			f->fd = fd;
 			f->next = c->files;
 			c->files = f;
 			
-			printf("%d\n", fd);	
-		
 			fd = fd + 1;
 
 			char * s = calloc((int)ceil(log10((double)fd))+2, sizeof(char));

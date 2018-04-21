@@ -9,36 +9,39 @@
 #include <string.h>
 #include <fcntl.h>
 #include <math.h>
+#include <ctype.h>
+#include <errno.h>
 
 char *hst;
 int globalfd;
 
 //check if hostname is available
-int netserverinit(char *hostname, int filemode) {
+int netserverinit(char *hostname, char * filemode) {
 	hst = hostname;
 	struct hostent *hstnm;
 	hstnm = gethostbyname(hostname);
 	if(hstnm != NULL) {
-		char *mode = calloc(1, sizeof(char));
-		char *response = calloc(256, sizeof(char));
-		switch(filemode) {
-			case UNRESTRICTED:
-				mode = "u";
-			break;
-			case EXCLUSIVE:
-				mode = "e";
-			break;
-			case TRANSACTION:
-				mode = "t";
-			break;
-			default: mode = "u";
+		char mode[2];
+		char response[256];
+		if(strcmp(filemode, "unrestricted") == 0) {
+			mode[0] = 'u';
+		}	
+		else if(strcmp(filemode, "exclusive") == 0){
+			mode[0] = 'e';
 		}
+		else if(strcmp(filemode, "transaction") == 0){
+			mode[0] = 't';
+		}
+		else{
+			mode[0] = 'u';
+		}
+		mode[1] = '\0';
 		int fd = connectToServer(hst);
 		if(fd < 0)
 			printf("Error connecting to server\n");
 		if(write(fd, mode, strlen(mode)) < 0)
 			printf("Error writing to server\n");
-		if(recv(fd, &response, 256, 0) < 0) 
+		if(recv(fd, response, 256, 0) < 0) 
 			printf("Error receiving message\n");
 
 		if(response[0] != 0) {
@@ -98,24 +101,58 @@ int netopen(char *pathname, int flags) {
 		break;
 	}	
 	int serverfd = connectToServer(hst);
-	char *msgrecv = calloc(256, sizeof(char));
 	char *msg = calloc(256, sizeof(char));
 	int pnlen = strlen(pathname);
 	char *pathlen = calloc(pnlen, sizeof(char));
 	sprintf(pathlen, "%d", pnlen);
+	int totallen = 2 + 2 + 1 + strlen(pathlen) + 1 + strlen(pathname);
+	char *msgrecv = calloc(totallen, sizeof(char));
 	strcat(msg, "o/");
 	strcat(msg, perm);
 	strcat(msg, "/");
 	strcat(msg, pathlen);
 	strcat(msg, "/");
 	strcat(msg, pathname);
+	//if(send(serverfd, msg, strlen(msg), 0) < 0) //Sends message to server
+	//	printf("Send failed\n");
 	if(send(serverfd, msg, strlen(msg), 0) < 0) //Sends message to server
 		printf("Send failed\n");
 	if(recv(serverfd, msgrecv, 256, 0) < 0) //Receives message from server
 		printf("Receive failed\n");
-	int fd = atoi(msgrecv);
-	if(fd == -1)
-		printf("File not found\n");
+	int i = 1;
+	while(isdigit(msgrecv[i])){
+		i++;
+	}
+	char * fdes = calloc(i+1, sizeof(char));
+	memcpy(fdes, &msgrecv[0], i);
+	fdes[i] = '\0';
+	int fd = atoi(fdes);
+	if(fd == -1){
+		int length = msgrecv[i+1] - '0';
+		switch(length){
+			case 5:
+				if(strcmp(&msgrecv[i+3], "eintr") == 0){
+					errno = EINTR;
+				}
+				else if(strcmp(&msgrecv[i+3], "erofs") == 0){
+					errno = EROFS;
+				}
+				break;
+			case 6: 
+				if(strcmp(&msgrecv[i+3], "eacces") == 0){
+					errno = EACCES;
+				}
+				else if(strcmp(&msgrecv[i+3], "eisdir") == 0){
+					errno = EISDIR;
+				}
+				else if(strcmp(&msgrecv[i+3], "enoent") == 0){
+					errno = ENOENT;
+				}
+				break;
+			default: break;
+		}
+		perror("Error, file not found");
+	}
 	globalfd = fd;
 	close(serverfd);
 	return fd;

@@ -10,8 +10,8 @@
 #include "libnetfiles.h"
 
 int main(){
-	netserverinit("cd.cs.rutgers.edu");
-	int fd = netopen("../test/test.c", O_RDONLY);
+	netserverinit("ls.cs.rutgers.edu", "unrestricted");
+	int fd = netopen("../test", O_RDWR);
 	printf("%d\n", fd);
 	return 0;
 }

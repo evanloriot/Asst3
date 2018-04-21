@@ -2,7 +2,7 @@
 #ifndef LIBNETFILES_H
 #define LIBNETFILES_H
 
-int netserverinit(char *hostname);
+int netserverinit(char *hostname, char * filemode);
 
 int connectToServer(char * hostname);
 
