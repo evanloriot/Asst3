@@ -198,7 +198,7 @@ void * connection_handler(void * sock){
 			
 			fd = fd + 1;
 
-			char * s = calloc((int)ceil(log10((double)fd))+2, sizeof(char));
+			char * s = calloc((int)floor(log10((double)fd))+3, sizeof(char));
 			sprintf(s, "-%d\n", fd);
 			if(send(socket, s, strlen(s), 0) < 0){
 				perror("Error, unable to send file descriptor to client.");
@@ -216,7 +216,9 @@ void * connection_handler(void * sock){
 			}
 			if(c == NULL){
 				//something bad is about to happen...
-				printf("something stupid...\n");
+				if(send(socket, "-1/", 3, 0) < 0){
+					perror("Error, response did not send");
+				}
 				break;
 			}
 			file * f = c->files;
@@ -228,25 +230,41 @@ void * connection_handler(void * sock){
 			}
 			if(f == NULL){
 				//again... something bad is about to happen...
-				printf("something stupid again...\n");
-				break;
-			}
-			int length = (int)ceil(log10((double)datasize));
-			char * d = calloc(datasize + length + 1 + 1, sizeof(char));
-			sprintf(d, "%d/", datasize);
-			int rd = read(fileDescriptor, &d[length+1], datasize);
-			d[datasize+length+3] = '\0';
-			
-			if(rd < 0){
-				//no read
 				if(send(socket, "-1/", 3, 0) < 0){
 					perror("Error, response did not send");
+				}
+				break;
+			}
+			char * d = calloc(datasize+1, sizeof(char));
+			int rd = read(fileDescriptor, d, datasize);
+			if(rd == 0){
+				if(send(socket, "000", 3, 0) < 0){
+					perror("Error");
 				}
 				free(d);
 				close(socket);
 				pthread_exit(NULL);
 			}
-			if(send(socket, d, datasize + length + 1, 0) < 0){
+			if(rd < 0){
+				//no read
+				if(errno == EBADF){
+					if(send(socket, "-1/", 3, 0) < 0){
+						perror("Error, response did not send");
+					}
+				}
+				else{
+					perror("Error");
+				}
+				free(d);
+				close(socket);
+				pthread_exit(NULL);
+			}
+			int length = (int)floor(log10((double)rd)) + 1;
+			char * dd = calloc(datasize + length + 2, sizeof(char));
+			sprintf(dd, "%d/", rd);
+			sprintf(dd + length + 1, "%s", d);
+
+			if(send(socket, dd, datasize + length + 1, 0) < 0){
 				perror("Error, response did not send");
 				free(d);
 				close(socket);

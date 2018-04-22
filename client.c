@@ -14,7 +14,9 @@ int main(){
 	int fd = netopen("../test/test.c", O_RDWR);
 	printf("%d\n", fd);
 	char buff[256];
-	int r = netread(fd, &buff, 25);
-	printf("%s\n", buff);
+	int r;
+	while ((r = netread(fd, &buff, 25)) > 0){
+		printf("%s", buff);
+	}
 	return 0;
 }
