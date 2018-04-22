@@ -113,8 +113,6 @@ int netopen(char *pathname, int flags) {
 	strcat(msg, pathlen);
 	strcat(msg, "/");
 	strcat(msg, pathname);
-	//if(send(serverfd, msg, strlen(msg), 0) < 0) //Sends message to server
-	//	printf("Send failed\n");
 	if(send(serverfd, msg, strlen(msg), 0) < 0) //Sends message to server
 		printf("Send failed\n");
 	if(recv(serverfd, msgrecv, 256, 0) < 0) //Receives message from server
@@ -164,10 +162,11 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 	int serverfd = connectToServer(hst); //connect to server
 	char *msg = calloc(256, sizeof(char));
 	char *msgrecv = calloc(256, sizeof(char));
-	globalfd = -1 * globalfd;
-	int fdlen = (int)ceil(log10((double)globalfd)) + 1;
-	globalfd = -1 * globalfd;
+	fildes = -1 * fildes;
+	int fdlen = (int)ceil(log10((double)fildes)) + 1;
+	fildes = -1 * fildes;
 	char *fdstr = calloc(fdlen, sizeof(char));
+	sprintf(fdstr, "-%d", fildes * -1);
 	int nbytelen = (int)ceil(log10((double)size));
 	char *nbytestr = calloc(nbytelen, sizeof(char));
 	sprintf(nbytestr, "%d", size);	
@@ -175,15 +174,40 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 	strcat(msg, fdstr);
 	strcat(msg, "/");
 	strcat(msg, nbytestr);
-	if(write(serverfd, msg, strlen(msg)) < 0) //send message to server
+	if(send(serverfd, msg, strlen(msg), 0) < 0) //send message to server
 		printf("Send failed\n");
-	while(recv(serverfd, &msgrecv, 256, 0) < 0) //receive message
-		printf("Receive failed\n");
-	strcat(buf, msgrecv);
-	int bytesread = atoi(msgrecv);
-	if(bytesread == -1)
-		printf("Read error\n");
-	return (ssize_t) bytesread;
+	int bytesRead, bytesToRead, isFirst = 1, bytes;
+	char * data = calloc(nbyte, sizeof(char));
+	while((bytes = recv(serverfd, msgrecv, 255, 0)) > 0){ //receive message
+		msgrecv[255] = '\0';
+		if(isFirst == 1 && strcmp(msgrecv, "-1/") == 0){
+			return -1;
+			break;
+		}
+		if(isFirst == 1){
+			int i = 0;
+			while(isdigit(msgrecv[i])){
+				i++;
+			}
+			char * len = calloc(i+2, sizeof(char));
+			memcpy(len, msgrecv, i+1);
+			len[i+1] = '\0';
+			bytesToRead = atoi(len);
+			free(len);
+			memcpy(data, &msgrecv[i+1], bytes - (i+1));
+			bytesRead += bytes - (i+1);
+		}
+		else{
+			memcpy(&data[bytesRead], msgrecv, bytes);
+			bytesRead += bytes;
+		}
+		if(bytesRead == bytesToRead){
+			break;
+		}
+		
+	}
+	memcpy(buf, data, nbyte);
+	return bytesRead;
 }
 
 ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {

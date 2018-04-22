@@ -11,7 +11,10 @@
 
 int main(){
 	netserverinit("ls.cs.rutgers.edu", "unrestricted");
-	int fd = netopen("../test", O_RDWR);
+	int fd = netopen("../test/test.c", O_RDWR);
 	printf("%d\n", fd);
+	char buff[256];
+	int r = netread(fd, &buff, 25);
+	printf("%s\n", buff);
 	return 0;
 }
