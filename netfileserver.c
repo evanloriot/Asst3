@@ -173,6 +173,15 @@ void * connection_handler(void * sock){
 					isFirst = 0;
 					break;
 				}
+				case 'c':{
+					command = 'c';
+
+					fileDescriptor = atoi(&buffer[3]);
+					fileDescriptor--;
+					
+					doBreak = 1;
+					break;
+				}
 				default:
 					break;
                         }
@@ -370,6 +379,71 @@ void * connection_handler(void * sock){
 				pthread_exit(NULL);
 			}
 			free(m);
+			break;
+		}
+		case 'c':{
+			client * prevClient = NULL;
+			client * c = clients;
+			while(c != NULL){
+				if(strcmp(c->ip, clientip) == 0){
+					break;
+				}
+				prevClient = c;
+				c = c->next;
+			}
+			if(c == NULL){
+				if(send(socket, "fail", 4, 0) < 0){
+					perror("Error");
+				}
+				break;
+			}
+			file * prevFile = NULL;
+			file * f = c->files;
+			while(f != NULL){
+				if(f->fd == fileDescriptor){
+					break;
+				}
+				prevFile = f;
+				f = f->next;
+			}
+			if(f == NULL){
+				if(send(socket, "fail", 4, 0) < 0){
+					perror("Error");
+				}
+				break;
+			}
+			int result = close(fileDescriptor);
+			if(result == 0){
+				//remove file
+				if(prevFile == NULL){
+					c->files = f->next;
+				}
+				else{
+					prevFile->next = f->next;
+				}
+				free(f);
+				//remove client if necessary
+				if(c->files == NULL){
+					if(prevClient == NULL){
+						clients = c->next;
+					}
+					else{
+						prevClient->next = c->next;
+					}
+					free(c->ip);
+					free(c);
+				}
+				if(send(socket, "zero", 4, 0) < 0){
+					perror("Error");
+				}
+			}
+			else{
+				//errno
+				if(send(socket, "fail", 4, 0) < 0){
+					perror("Error");
+				}
+			}			
+
 			break;
 		}
 	}

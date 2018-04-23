@@ -250,23 +250,28 @@ ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
 }
 
 int netclose(int fd) {
+	int output = -1;
 	int serverfd = connectToServer(hst);
 	fd = -1 * fd;
 	int fdlen = (int)floor(log10((double)fd)) + 2;
 	fd = -1 * fd;
 	char *fdstr = calloc(fdlen, sizeof(char));
-	char  msg[256];
-	char msgrecv[256];
+	sprintf(fdstr, "-%d", fd * -1);
+	char * msg = calloc(2 + strlen(fdstr) + 1, sizeof(char));
+	char * msgrecv = calloc(256, sizeof(char));
 	strcat(msg, "c/");
 	strcat(msg, fdstr);
 	if(send(serverfd, msg, 256, strlen(msg)) < 0)
-		printf("Send failed\n");
+		perror("Error");
 	if(recv(serverfd, msgrecv, 256, 0) < 0)
-		printf("Receive failed\n");
-	int result = atoi(msgrecv);
-	if(result == 0)
-		printf("Close success\n");
-	else printf("Close failed\n");
-	return result;
+		perror("Error");
+	if(strcmp(msgrecv, "zero") == 0){
+		output = 0;
+	}
+	else{
+		output = -1;
+		errno = EBADF;
+	}
+	return output;
 }
 
