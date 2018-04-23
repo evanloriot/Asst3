@@ -13,7 +13,6 @@
 #include <errno.h>
 
 char *hst;
-int globalfd;
 
 //check if hostname is available
 int netserverinit(char *hostname, char * filemode) {
@@ -102,12 +101,12 @@ int netopen(char *pathname, int flags) {
 		break;
 	}	
 	int serverfd = connectToServer(hst);
-	char *msg = calloc(256, sizeof(char));
 	int pnlen = strlen(pathname);
 	char *pathlen = calloc(pnlen, sizeof(char));
 	sprintf(pathlen, "%d", pnlen);
 	int totallen = 2 + 2 + 1 + strlen(pathlen) + 1 + strlen(pathname);
 	char *msgrecv = calloc(totallen, sizeof(char));
+	char *msg = calloc(totallen, sizeof(char));
 	strcat(msg, "o/");
 	strcat(msg, perm);
 	strcat(msg, "/");
@@ -152,7 +151,6 @@ int netopen(char *pathname, int flags) {
 		}
 		perror("Error, file not found");
 	}
-	globalfd = fd;
 	close(serverfd);
 	return fd;
 }
@@ -219,41 +217,43 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 }
 
 ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
+	if(fildes == 0){
+		printf("File descriptor cannot be zero.");
+		return -1;
+	}
 	unsigned int size = (unsigned int) nbyte;	
-	char *text = calloc(nbyte, sizeof(char));
-	memcpy(text, buf, nbyte);
 	int serverfd = connectToServer(hst);
-	globalfd = -1 * globalfd;
-	int fdlen = (int)floor(log10((double)globalfd)) + 2;
-	globalfd = -1 * globalfd;
+	fildes = -1 * fildes;
+	int fdlen = (int)floor(log10((double)fildes)) + 2;
+	fildes = -1 * fildes;
 	char *fdstr = calloc(fdlen, sizeof(char));
+	sprintf(fdstr, "-%d", fildes * -1);
 	int nbytelen = (int)floor(log10((double)size)) + 1;
 	char *nbytestr = calloc(nbytelen, sizeof(char));
 	sprintf(nbytestr, "%d", size);	
-	char msg[256];
-	char msgrecv[256];
+	int totallen = 2 + strlen(fdstr) + 1 + strlen(nbytestr) + 1 + size;
+	char * msg = calloc(totallen + 1, sizeof(char));
+	char * msgrecv = calloc(totallen + 1, sizeof(char));
 	strcat(msg, "w/");
 	strcat(msg, fdstr);
 	strcat(msg, "/");
-	strcat(msg, nbytestr);
+	strcat(msg,nbytestr);
 	strcat(msg, "/");
-	strcat(msg, text);
-	sprintf(msg, "%d", (unsigned int)nbyte);
-	if(send(serverfd, msg, 256, strlen(msg)) < 0)
-		printf("Send failed\n");
-	if(recv(serverfd, &msgrecv, 256, 0) < 0)
-		printf("Receive failed\n");
+	memcpy(msg + (2 + strlen(fdstr) + 1 + strlen(nbytestr) + 1), buf, size);
+	if(send(serverfd, msg, strlen(msg), 0) < 0)
+		perror("Error");
+	if(recv(serverfd, msgrecv, 256, 0) < 0)
+		perror("Error");
+		
 	int byteswritten = atoi(msgrecv);
-	if(byteswritten == -1)
-		printf("Write error\n");
 	return (ssize_t) byteswritten;
 }
 
 int netclose(int fd) {
 	int serverfd = connectToServer(hst);
-	globalfd = -1 * globalfd;
-	int fdlen = (int)floor(log10((double)globalfd)) + 2;
-	globalfd = -1 * globalfd;
+	fd = -1 * fd;
+	int fdlen = (int)floor(log10((double)fd)) + 2;
+	fd = -1 * fd;
 	char *fdstr = calloc(fdlen, sizeof(char));
 	char  msg[256];
 	char msgrecv[256];

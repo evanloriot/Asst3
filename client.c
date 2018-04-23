@@ -10,13 +10,14 @@
 #include "libnetfiles.h"
 
 int main(){
-	netserverinit("ls.cs.rutgers.edu", "unrestricted");
+	netserverinit("design.cs.rutgers.edu", "unrestricted");
+	char * b = "asdlkjfhaslkjdfhlaksjdhflkjashdflkjashdlfkjhasdlkjfhaslkjdhflkjashdflkjashdlkjfhaslkjdfhaslkjdhflaksjdhflkjashdflkjashdflkjahsdlkfjhaslkdjfhasljkdhfljkashdfljkashdfjlkhasljkdfhlaskjdhflkjashdflkjashdlkfjhasldkjfhaslkjdhflkjashdflkjahsdlkfjhaslkdjfhasl.txt";
 	int fd = netopen("../test/test.c", O_RDWR);
-	printf("%d\n", fd);
-	char buff[256];
-	int r;
-	while ((r = netread(fd, &buff, 25)) > 0){
-		printf("%s", buff);
-	}
+	int w = netwrite(fd, b, strlen(b));
+	printf("Written: %d\n", w);
+	//char buff[256];
+	//int r = netread(fd, buff, 12);
+	//buff[12] = '\0';
+	//printf("R: %d, Buff: %s\n", r, buff); 
 	return 0;
 }

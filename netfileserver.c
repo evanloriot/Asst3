@@ -27,7 +27,7 @@ typedef struct _client {
 	struct _client * next;
 } client;
 
-client * clients;
+client * clients = NULL;
 
 int main(){
 	pthread_t server_thread;
@@ -95,16 +95,26 @@ void * connection_handler(void * sock){
                                         free(num);
 
                                         data = calloc(datasize, sizeof(char));
-                                        sprintf(data, "%s", &buffer[i+1]);
+					if(255 - (i+1) < datasize){
+						memcpy(data, &buffer[i+1], 255 - (i+1));
+					}
+					else{
+						memcpy(data, &buffer[i+1], datasize);
+					}
 					
-					r = strlen(&buffer[i+1]);
+					if(datasize > 255 - (i+1)){
+						r = 255-(i+1);
+					}
+					else{
+						r = datasize;
+					}
 
                                         isFirst = 0;
                                         break;
-				case 'r':
+				case 'r':{
 					command = buffer[0];
 
-					i = 3;
+					int i = 3;
 					while(isdigit(buffer[i])){
 						i++;
 					}
@@ -126,16 +136,56 @@ void * connection_handler(void * sock){
 					free(n);
 					doBreak = 1;
 					break;
+				}
+				case 'w':{
+					command = buffer[0];
+					
+					int i = 3;
+					while(isdigit(buffer[i])){
+						i++;
+					}
+					char * fd = calloc((i-3) + 1, sizeof(char));
+					memcpy(fd, &buffer[3], i-3);
+					fd[i-3] = '\0';
+					fileDescriptor = atoi(fd);
+					fileDescriptor--;
+					free(fd);
+
+					int j = i+1;
+					while(isdigit(buffer[j])){
+						j++;
+					}
+					char * num = calloc(j - (i+1) + 1, sizeof(char));
+					memcpy(num, &buffer[i+1], j - i);
+					num[j-1] = '\0';
+					datasize = atoi(num);
+					free(num);
+
+					data = calloc(datasize, sizeof(char));
+					if(datasize > 255 - (j+1)){
+						memcpy(data, &buffer[j+1], 255 - (j + 1));
+						r = 255 - (j+1);
+					}
+					else{
+						memcpy(data, &buffer[j+1], datasize);
+						r = datasize;
+					}
+					isFirst = 0;
+					break;
+				}
 				default:
 					break;
                         }
                 }
 		else{
-			if(datasize - bytes < 256){
-				buffer[datasize - bytes] = '\0';
+			if(255 + r < datasize){
+				memcpy(data + r, buffer, 255);
+				r += 255;
 			}
-			sprintf(data + bytes, "%s", buffer);
-			r += bytes;
+			else{
+				memcpy(data + r, buffer, datasize - r);
+				r = datasize;
+			}
 		}
 		if(r == datasize || doBreak == 1){
 			break;
@@ -153,7 +203,7 @@ void * connection_handler(void * sock){
 			if(c == NULL){
 				c = malloc(sizeof(client));
 				c->ip = calloc(strlen(clientip), sizeof(char));
-				sprintf(c->ip, "%s", clientip);
+				strcpy(c->ip, clientip);
 				c->next = clients;
 				c->files = NULL;
 				clients = c;
@@ -215,7 +265,6 @@ void * connection_handler(void * sock){
 				c = c->next;
 			}
 			if(c == NULL){
-				//something bad is about to happen...
 				if(send(socket, "-1/", 3, 0) < 0){
 					perror("Error, response did not send");
 				}
@@ -229,7 +278,6 @@ void * connection_handler(void * sock){
 				f = f->next;
 			}
 			if(f == NULL){
-				//again... something bad is about to happen...
 				if(send(socket, "-1/", 3, 0) < 0){
 					perror("Error, response did not send");
 				}
@@ -273,7 +321,59 @@ void * connection_handler(void * sock){
 			free(d);
 			break;
 		}
+		case 'w':{
+			client * c = clients;
+			while(c != NULL){
+				if(strcmp(c->ip, clientip) == 0){
+					break;
+				}
+				c = c->next;
+			}
+			if(c == NULL){
+				if(send(socket, "-1/", 3, 0) < 0){
+					perror("Error, response did not send");
+				}
+				break;
+			}
+			file * f = c->files;
+			while(f != NULL){
+				if(f->fd == fileDescriptor){
+					break;
+				}
+				f = f->next;
+			}
+			if(f == NULL){
+				if(send(socket, "-1/", 3, 0) < 0){
+					perror("Error, response did not send");
+				}
+				break;
+			}
+			int wr = write(fileDescriptor, data, datasize);
+			if(wr < 0){
+				if(errno == EBADF){
+					if(send(socket, "-1/", 3, 0) < 0){
+						perror("Error, response did not send");
+					}
+				}
+				else{
+					perror("Unexpected Error");
+				}
+			}
+			int length = (int)floor(log10((double)wr)) + 1;
+			char * m = calloc(length+1, sizeof(char));
+			sprintf(m, "%d", wr);
+			if(send(socket, m, length, 0) < 0){
+				perror("Error");
+				free(m);
+				close(socket);
+				if(data != NULL) free(data);
+				pthread_exit(NULL);
+			}
+			free(m);
+			break;
+		}
 	}
+	if(data != NULL) free(data);
         close(socket);
 	pthread_exit(NULL);
 }
