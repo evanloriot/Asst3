@@ -216,7 +216,12 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 			break;
 		}
 		else if(strcmp(msgrecv, "000") == 0){
-			return 0;
+			if(isFirst == 1){
+				return 0;
+			}
+			else{
+				break;
+			}
 		}
 		if(isFirst == 1){
 			int i = 0;
@@ -235,7 +240,7 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 			memcpy(&data[bytesRead], msgrecv, bytes);
 			bytesRead += bytes;
 		}
-		if(bytesRead == bytesToRead){
+		if(bytesRead >= bytesToRead){
 			break;
 		}
 		
