@@ -27,7 +27,27 @@ typedef struct _client {
 	struct _client * next;
 } client;
 
+typedef struct _accessType {
+	char mode;
+	int isWrite;
+	struct _accessType * next;
+} accessType;
+
+typedef struct _fileParam {
+	int fd;
+	accessType * modes;
+	struct _fileParam * next;
+} fileParam;
+
+typedef struct _clientAccessParam {
+	char * ip;
+	char param;
+	struct _clientAccessParam * next;
+} clientAccessParam;
+
 client * clients = NULL;
+fileParam * filesOpen = NULL;
+clientAccessParam * cParams = NULL;
 
 int main(){
 	pthread_t server_thread;
@@ -182,6 +202,18 @@ void * connection_handler(void * sock){
 					doBreak = 1;
 					break;
 				}
+				case 'u':{
+					command = 'u';
+					break;
+				}
+				case 'e':{
+					command = 'e';
+					break;
+				}
+				case 't':{
+					command = 't';
+					break;
+				}
 				default:
 					break;
                         }
@@ -196,12 +228,90 @@ void * connection_handler(void * sock){
 				r = datasize;
 			}
 		}
-		if(r == datasize || doBreak == 1){
+		if(r >= datasize || doBreak == 1){
 			break;
 		}
         }
 	switch(command){
 		case 'o':{
+			clientAccessParam * p = cParams;
+			while(p != NULL){
+				if(strcmp(p->ip, clientip) == 0){
+					break;
+				}
+				p = p->next;
+			}
+			if(p == NULL){
+				//something fucked
+				close(socket);
+				pthread_exit(NULL);
+			}
+			fileParam * fo = filesOpen;
+			while(fo != NULL){
+				if(fo->fd == fileDescriptor){
+					break;
+				}
+				fo = fo->next;
+			}
+			if(fo != NULL && p->param == 't'){
+				send(socket, "-1/38/File already open in Transaction mode.", 44, 0);
+				break;
+			}
+			if(fo != NULL){
+				if(p->param == 'e'){
+					accessType * modes = fo->modes;
+					while(modes != NULL){
+						if(modes->isWrite == 1){
+							send(socket, "-1/32/File already open in write mode.", 38, 0);
+							break;	
+						}
+						modes = modes->next;
+					}
+					if(modes != NULL){
+						break;
+					}
+				}
+				else if(p->param == 'u'){
+					accessType * modes = fo->modes;
+					while(modes != NULL){
+						if(modes->mode == 'e' && modes->isWrite == 1){
+							char * msg = "-1/54/File already open in write mode with exclusive access.";
+							send(socket, msg, strlen(msg), 0);
+							break;
+						}
+						modes = modes->next;
+					}
+					if(modes != NULL){
+						break;
+					}
+				}
+				accessType * mode = malloc(sizeof(accessType));
+				mode->mode = p->param;
+				if(strcmp(flags, "rw") == 0 || strcmp(flags, "wo") == 0){
+					mode->isWrite = 1;
+				}
+				else{
+					mode->isWrite = 0;
+				}
+				mode->next = fo->modes;
+				fo->modes = mode;
+			}
+			else{
+				fo = malloc(sizeof(fileParam));
+				fo->fd = fileDescriptor;
+				fo->modes = malloc(sizeof(accessType));
+				fo->modes->mode = p->param;
+				if(strcmp(flags, "rw") == 0 || strcmp(flags, "wo") == 0){
+					fo->modes->isWrite = 1;
+				}
+				else{
+					fo->modes->isWrite = 0;
+				}
+				fo->modes->next = NULL;
+				fo->next = filesOpen;
+				filesOpen = fo;
+			}
+
 			client * c = clients;
 			while(c != NULL){
 				if(strcmp(c->ip, clientip) == 0){
@@ -444,6 +554,69 @@ void * connection_handler(void * sock){
 				}
 			}			
 
+			break;
+		}
+		case 'u':{
+			clientAccessParam * p = cParams;
+			while(p != NULL){
+				if(strcmp(p->ip, clientip) == 0){
+					break;
+				}
+				p = p->next;
+			}
+			if(p == NULL){
+				p = malloc(sizeof(clientAccessParam));
+				p->ip = calloc(strlen(clientip), sizeof(char));
+				strcpy(p->ip, clientip);
+				p->param = 'u';
+				p->next = cParams;
+				cParams = p;
+			}
+			else{
+				p->param = 'u';
+			}
+			break;
+		}
+		case 'e':{
+			clientAccessParam * p = cParams;
+			while(p != NULL){
+				if(strcmp(p->ip, clientip) == 0){
+					break;
+				}
+				p = p->next;
+			}
+			if(p == NULL){
+				p = malloc(sizeof(clientAccessParam));
+				p->ip = calloc(strlen(clientip), sizeof(char));
+				strcpy(p->ip, clientip);
+				p->param = 'e';
+				p->next = cParams;
+				cParams = p;
+			}
+			else{
+				p->param = 'e';
+			}
+			break;
+		}
+		case 't':{
+			clientAccessParam * p = cParams;
+			while(p != NULL){
+				if(strcmp(p->ip, clientip) == 0){
+					break;
+				}
+				p = p->next;
+			}
+			if(p == NULL){
+				p = malloc(sizeof(clientAccessParam));
+				p->ip = calloc(strlen(clientip), sizeof(char));
+				strcpy(p->ip, clientip);
+				p->param = 't';
+				p->next = cParams;
+				cParams = p;
+			}
+			else{
+				p->param = 't';
+			}
 			break;
 		}
 	}

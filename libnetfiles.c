@@ -12,7 +12,7 @@
 #include <ctype.h>
 #include <errno.h>
 
-char *hst;
+char *hst = NULL;
 
 //check if hostname is available
 int netserverinit(char *hostname, char * filemode) {
@@ -88,6 +88,10 @@ int connectToServer(char* hostname) {
 
 //tells server to open file and reports file descriptor
 int netopen(char *pathname, int flags) {
+	if(hst == NULL){
+		printf("Run netserverinit before opening.");
+		return -1;
+	}
 	char *perm = calloc(2, sizeof(char));
 	switch(flags) {
 		case O_RDONLY:
@@ -99,13 +103,18 @@ int netopen(char *pathname, int flags) {
 		case O_RDWR:
 		perm = "rw";
 		break;
+		default: {
+			printf("O_RDONLY/O_WRONLY/O_RDWR only are supported.\n");
+			return -1;	
+		}
 	}	
 	int serverfd = connectToServer(hst);
 	int pnlen = strlen(pathname);
 	char *pathlen = calloc(pnlen, sizeof(char));
 	sprintf(pathlen, "%d", pnlen);
 	int totallen = 2 + 2 + 1 + strlen(pathlen) + 1 + strlen(pathname);
-	char *msgrecv = calloc(totallen, sizeof(char));
+	free(pathlen);
+	char msgrecv[256];
 	char *msg = calloc(totallen, sizeof(char));
 	strcat(msg, "o/");
 	strcat(msg, perm);
@@ -115,18 +124,29 @@ int netopen(char *pathname, int flags) {
 	strcat(msg, pathname);
 	if(send(serverfd, msg, strlen(msg), 0) < 0) //Sends message to server
 		perror("Error");
-	if(recv(serverfd, msgrecv, 256, 0) < 0) //Receives message from server
+	free(msg);
+	if(recv(serverfd, msgrecv, 255, 0) < 0) //Receives message from server
 		perror("Error");
+	msgrecv[255] = '\0';
 	int i = 1;
 	while(isdigit(msgrecv[i])){
 		i++;
 	}
 	char * fdes = calloc(i+1, sizeof(char));
-	memcpy(fdes, &msgrecv[0], i);
+	memcpy(fdes, msgrecv, i);
 	fdes[i] = '\0';
 	int fd = atoi(fdes);
 	if(fd == -1){
-		int length = msgrecv[i+1] - '0';
+		i = 3;
+		while(isdigit(msgrecv[i])){
+			i++;
+		}
+		char * num = calloc(i - 3 + 1, sizeof(char));
+		
+		memcpy(num, &msgrecv[3], i - 3);
+		num[i-3] = '\0';
+		int length = atoi(num);
+		free(num);
 		switch(length){
 			case 5:
 				if(strcmp(&msgrecv[i+3], "eintr") == 0){
@@ -147,7 +167,15 @@ int netopen(char *pathname, int flags) {
 					errno = ENOENT;
 				}
 				break;
-			default: break;
+			default: {
+				char * error = calloc(length+1, sizeof(char));
+				memcpy(error, &msgrecv[i+1], length);
+				error[length] = '\0';
+				printf("Error: %s\n", error);
+				free(error);
+				close(serverfd);
+				return fd;
+			}
 		}
 		perror("Error, file not found");
 	}
@@ -160,7 +188,7 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 	unsigned int size = (unsigned int) nbyte;
 	int serverfd = connectToServer(hst); //connect to server
 	char *msg = calloc(256, sizeof(char));
-	char *msgrecv = calloc(256, sizeof(char));
+	char msgrecv[256];
 	fildes = -1 * fildes;
 	int fdlen = (int)floor(log10((double)fildes)) + 2;
 	fildes = -1 * fildes;
@@ -173,8 +201,11 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 	strcat(msg, fdstr);
 	strcat(msg, "/");
 	strcat(msg, nbytestr);
+	free(fdstr);
+	free(nbytestr);
 	if(send(serverfd, msg, strlen(msg), 0) < 0) //send message to server
 		perror("Error");
+	free(msg);
 	int bytesRead, bytesToRead, isFirst = 1, bytes;
 	char * data = calloc(nbyte, sizeof(char));
 	while((bytes = recv(serverfd, msgrecv, 255, 0)) > 0){ //receive message
@@ -213,6 +244,7 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 		return -1;
 	}
 	memcpy(buf, data, nbyte);
+	free(data);
 	return bytesRead;
 }
 
@@ -233,19 +265,26 @@ ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
 	sprintf(nbytestr, "%d", size);	
 	int totallen = 2 + strlen(fdstr) + 1 + strlen(nbytestr) + 1 + size;
 	char * msg = calloc(totallen + 1, sizeof(char));
-	char * msgrecv = calloc(totallen + 1, sizeof(char));
+	char msgrecv[256];
 	strcat(msg, "w/");
 	strcat(msg, fdstr);
 	strcat(msg, "/");
 	strcat(msg,nbytestr);
 	strcat(msg, "/");
 	memcpy(msg + (2 + strlen(fdstr) + 1 + strlen(nbytestr) + 1), buf, size);
+	free(fdstr);
+	free(nbytestr);
 	if(send(serverfd, msg, strlen(msg), 0) < 0)
 		perror("Error");
-	if(recv(serverfd, msgrecv, 256, 0) < 0)
+	free(msg);
+	if(recv(serverfd, msgrecv, 255, 0) < 0)
 		perror("Error");
+	msgrecv[255] = '\0';
 		
 	int byteswritten = atoi(msgrecv);
+	if(byteswritten == -1){
+		errno = EBADF;
+	}
 	return (ssize_t) byteswritten;
 }
 
@@ -258,13 +297,16 @@ int netclose(int fd) {
 	char *fdstr = calloc(fdlen, sizeof(char));
 	sprintf(fdstr, "-%d", fd * -1);
 	char * msg = calloc(2 + strlen(fdstr) + 1, sizeof(char));
-	char * msgrecv = calloc(256, sizeof(char));
+	char msgrecv[256];
 	strcat(msg, "c/");
 	strcat(msg, fdstr);
+	free(fdstr);
 	if(send(serverfd, msg, 256, strlen(msg)) < 0)
 		perror("Error");
-	if(recv(serverfd, msgrecv, 256, 0) < 0)
+	free(msg);
+	if(recv(serverfd, msgrecv, 255, 0) < 0)
 		perror("Error");
+	msgrecv[255] = '\0';
 	if(strcmp(msgrecv, "zero") == 0){
 		output = 0;
 	}
