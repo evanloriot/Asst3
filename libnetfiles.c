@@ -95,14 +95,14 @@ int netopen(char *pathname, int flags) {
 	char *perm = calloc(2, sizeof(char));
 	switch(flags) {
 		case O_RDONLY:
-		perm = "ro";
-		break;
+			strcat(perm, "ro");
+			break;
 		case O_WRONLY:
-		perm = "wo";
-		break;
+			strcat(perm, "wo");
+			break;
 		case O_RDWR:
-		perm = "rw";
-		break;
+			strcat(perm, "rw");
+			break;
 		default: {
 			printf("O_RDONLY/O_WRONLY/O_RDWR only are supported.\n");
 			return -1;	
@@ -113,7 +113,6 @@ int netopen(char *pathname, int flags) {
 	char *pathlen = calloc(pnlen, sizeof(char));
 	sprintf(pathlen, "%d", pnlen);
 	int totallen = 2 + 2 + 1 + strlen(pathlen) + 1 + strlen(pathname);
-	free(pathlen);
 	char msgrecv[256];
 	char *msg = calloc(totallen, sizeof(char));
 	strcat(msg, "o/");
@@ -122,6 +121,8 @@ int netopen(char *pathname, int flags) {
 	strcat(msg, pathlen);
 	strcat(msg, "/");
 	strcat(msg, pathname);
+	free(pathlen);
+	free(perm);
 	if(send(serverfd, msg, strlen(msg), 0) < 0) //Sends message to server
 		perror("Error");
 	free(msg);
@@ -148,25 +149,34 @@ int netopen(char *pathname, int flags) {
 		int length = atoi(num);
 		free(num);
 		switch(length){
-			case 5:
-				if(strcmp(&msgrecv[i+3], "eintr") == 0){
+			case 5:{
+				char * err = calloc(6, sizeof(char));
+				memcpy(err, &msgrecv[i+1], 5);
+				err[5] = '\0';
+				if(strcmp(err, "eintr") == 0){
 					errno = EINTR;
 				}
-				else if(strcmp(&msgrecv[i+3], "erofs") == 0){
+				else if(strcmp(err, "erofs") == 0){
 					errno = EROFS;
 				}
 				break;
-			case 6: 
-				if(strcmp(&msgrecv[i+3], "eacces") == 0){
+			}
+			case 6:{ 
+				char * err = calloc(7, sizeof(char));
+				memcpy(err, &msgrecv[i+1], 6);
+				err[6] = '\0';
+				if(strcmp(err, "eacces") == 0){
 					errno = EACCES;
 				}
-				else if(strcmp(&msgrecv[i+3], "eisdir") == 0){
+				else if(strcmp(err, "eisdir") == 0){
 					errno = EISDIR;
 				}
-				else if(strcmp(&msgrecv[i+3], "enoent") == 0){
+				else if(strcmp(err, "enoent") == 0){
 					errno = ENOENT;
 				}
+				free(err);
 				break;
+			}
 			default: {
 				char * error = calloc(length+1, sizeof(char));
 				memcpy(error, &msgrecv[i+1], length);
