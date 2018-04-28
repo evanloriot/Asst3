@@ -581,6 +581,9 @@ void * connection_handler(void * sock){
 			else{
 				p->param = 'u';
 			}
+			if((send(socket, "success", 7, 0)) < 0){
+				perror("Error");
+			}
 			break;
 		}
 		case 'e':{
@@ -602,6 +605,9 @@ void * connection_handler(void * sock){
 			else{
 				p->param = 'e';
 			}
+			if((send(socket, "success", 7, 0)) < 0){
+				perror("Error");
+			}
 			break;
 		}
 		case 't':{
@@ -622,6 +628,9 @@ void * connection_handler(void * sock){
 			}
 			else{
 				p->param = 't';
+			}
+			if((send(socket, "success", 7, 0)) < 0){
+				perror("Error");
 			}
 			break;
 		}

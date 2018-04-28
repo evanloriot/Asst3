@@ -36,19 +36,22 @@ int netserverinit(char *hostname, char * filemode) {
 		}
 		mode[1] = '\0';
 		int fd = connectToServer(hst);
-		if(fd < 0)
+		if(fd < 0){
 			perror("Error");
+			return -1;
+		}
 		if(write(fd, mode, strlen(mode)) < 0)
 			perror("Error");			
 		if(recv(fd, response, 256, 0) < 0) 
 			perror("Error");
 
-		if(response[0] != 0) {
-			//this may not work... fix this
-			printf("%s", response);
+		if(strcmp(response, "success") == 0) {
+			printf("Successfully connected to server\n");
+		}
+		else{
+			perror("Error");
 			return -1;
 		}
-		else printf("Successfully connected to server\n");
 		return 0;
 	}
 	else {
@@ -78,7 +81,7 @@ int connectToServer(char* hostname) {
 	bcopy((char*) server->h_addr, (char*) &serverAddress.sin_addr.s_addr, server->h_length);
 	serverAddress.sin_port = htons(14315);
 	if(connect(sock, (struct sockaddr*) &serverAddress, sizeof(serverAddress)) < 0){
-		perror("Error, could not connect to server.\n");
+		perror("Error");
 		close(sock);
 		return -1;
 	}
@@ -95,15 +98,12 @@ int netopen(char *pathname, int flags) {
 	char *perm;
 	switch(flags) {
 		case O_RDONLY:
-			//strcat(perm, "ro");
 			perm = "ro";
 			break;
 		case O_WRONLY:
-			//strcat(perm, "wo");
 			perm = "wo";
 			break;
 		case O_RDWR:
-			//strcat(perm, "rw");
 			perm = "rw";
 			break;
 		default: {
@@ -112,6 +112,10 @@ int netopen(char *pathname, int flags) {
 		}
 	}	
 	int serverfd = connectToServer(hst);
+	if(serverfd < 0){
+		perror("Error");
+		return -1;
+	}
 	int pnlen = strlen(pathname);
 	char *pathlen = calloc(pnlen, sizeof(char));
 	sprintf(pathlen, "%d", pnlen);
@@ -198,6 +202,10 @@ int netopen(char *pathname, int flags) {
 
 //tells server to read file and reports number of bytes read
 ssize_t netread(int fildes, void *buf, size_t nbyte) {
+	if(fildes >= -1){
+		//need to print something?
+		return -1;
+	}
 	unsigned int size = (unsigned int) nbyte;
 	int serverfd = connectToServer(hst); //connect to server
 	char *msg = calloc(256, sizeof(char));
@@ -270,8 +278,8 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 }
 
 ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
-	if(fildes == 0){
-		printf("File descriptor cannot be zero.");
+	if(fildes >= -1){
+		//need to print something?
 		return -1;
 	}
 	unsigned int size = (unsigned int) nbyte;	
@@ -279,10 +287,10 @@ ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
 	fildes = -1 * fildes;
 	int fdlen = (int)floor(log10((double)fildes)) + 2;
 	fildes = -1 * fildes;
-	char *fdstr = calloc(fdlen, sizeof(char));
+	char *fdstr = calloc(fdlen+1, sizeof(char));
 	sprintf(fdstr, "-%d", fildes * -1);
 	int nbytelen = (int)floor(log10((double)size)) + 1;
-	char *nbytestr = calloc(nbytelen, sizeof(char));
+	char *nbytestr = calloc(nbytelen+1, sizeof(char));
 	sprintf(nbytestr, "%d", size);	
 	int totallen = 2 + strlen(fdstr) + 1 + strlen(nbytestr) + 1 + size;
 	char * msg = calloc(totallen + 1, sizeof(char));
@@ -310,6 +318,10 @@ ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
 }
 
 int netclose(int fd) {
+	if(fd >= -1){
+		//need to print something?
+		return -1;
+	}
 	int output = -1;
 	int serverfd = connectToServer(hst);
 	fd = -1 * fd;
