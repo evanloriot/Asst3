@@ -437,6 +437,7 @@ void * connection_handler(void * sock){
 				close(socket);
 				pthread_exit(NULL);
 			}
+			free(dd);
 			free(d);
 			break;
 		}

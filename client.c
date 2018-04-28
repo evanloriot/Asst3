@@ -12,7 +12,13 @@
 int main(){
 	//netserverinit("ls.cs.rutgers.edu", "exclusive");
 	netserverinit("ls.cs.rutgers.edu", "unrestricted");
-	int fd = netopen("../test/test.c", O_RDWR);
-	printf("FD: %d\n", fd);
-	return 0;
+	int fd = netopen("./netfileserver.c", O_RDONLY);
+	char buff[256];
+	int r;
+	while((r = netread(fd, &buff, 255)) > 0){
+		buff[r] = '\0';
+		printf("%s", buff);
+	}
+	netclose(fd);
+	return 1;
 }

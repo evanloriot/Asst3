@@ -216,10 +216,10 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 	if(send(serverfd, msg, strlen(msg), 0) < 0) //send message to server
 		perror("Error");
 	free(msg);
-	int bytesRead, bytesToRead, isFirst = 1, bytes;
+	int bytesRead = 0, bytesToRead, isFirst = 1, bytes;
 	char * data = calloc(nbyte, sizeof(char));
 	while((bytes = recv(serverfd, msgrecv, 255, 0)) > 0){ //receive message
-		msgrecv[255] = '\0';
+		msgrecv[bytes] = '\0';
 		if(isFirst == 1 && strcmp(msgrecv, "-1/") == 0){
 			errno = EBADF;
 			return -1;
@@ -238,13 +238,14 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 			while(isdigit(msgrecv[i])){
 				i++;
 			}
-			char * len = calloc(i+2, sizeof(char));
-			memcpy(len, msgrecv, i+1);
-			len[i+1] = '\0';
+			char * len = calloc(i+1, sizeof(char));
+			memcpy(len, msgrecv, i);
+			len[i] = '\0';
 			bytesToRead = atoi(len);
 			free(len);
-			memcpy(data, &msgrecv[i+1], bytes - (i+1));
+			memcpy(data, &msgrecv[i+1], bytes - (i + 1));
 			bytesRead += bytes - (i+1);
+			isFirst = 0;
 		}
 		else{
 			memcpy(&data[bytesRead], msgrecv, bytes);
