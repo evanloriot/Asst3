@@ -296,33 +296,69 @@ void * connection_handler(void * sock){
 				com->next = q->commandsQueued;
 				q->commandsQueued = com;
 				sem_wait(q->binarySema);
+				q->commandsQueued = com->next;
+				free(com);
 			}
 			if(fo != NULL){
 				if(p->param == 'e'){
 					accessType * modes = fo->modes;
 					while(modes != NULL){
 						if(modes->isWrite == 1){
-							send(socket, "-1/32/File already open in write mode.", 38, 0);
+							//send(socket, "-1/32/File already open in write mode.", 38, 0);
 							break;	
 						}
 						modes = modes->next;
 					}
 					if(modes != NULL){
-						break;
+						queue * q = fileQueue;
+						while(q != NULL){
+							if(strcmp(q->filePath, data) == 0){
+								break;
+							}
+							q = q->next;
+						}
+						if(q == NULL){
+							printf("NULL\n");
+							//bad
+						}
+						commandNode * com = malloc(sizeof(commandNode));
+						com->mode = p->param;
+						com->next = q->commandsQueued;
+						q->commandsQueued = com;
+						sem_wait(q->binarySema);
+						q->commandsQueued = com->next;
+						free(com);
 					}
 				}
 				else if(p->param == 'u'){
 					accessType * modes = fo->modes;
 					while(modes != NULL){
 						if(modes->mode == 'e' && modes->isWrite == 1){
-							char * msg = "-1/54/File already open in write mode with exclusive access.";
-							send(socket, msg, strlen(msg), 0);
+							//char * msg = "-1/54/File already open in write mode with exclusive access.";
+							//send(socket, msg, strlen(msg), 0);
 							break;
 						}
 						modes = modes->next;
 					}
 					if(modes != NULL){
-						break;
+						queue * q = fileQueue;
+						while(q != NULL){
+							if(strcmp(q->filePath, data) == 0){
+								break;
+							}
+							q = q->next;
+						}
+						if(q == NULL){
+							printf("NULL\n");
+							//bad
+						}
+						commandNode * com = malloc(sizeof(commandNode));
+						com->mode = p->param;
+						com->next = q->commandsQueued;
+						q->commandsQueued = com;
+						sem_wait(q->binarySema);
+						q->commandsQueued = com->next;
+						free(com);
 					}
 				}
 				accessType * mode = malloc(sizeof(accessType));
