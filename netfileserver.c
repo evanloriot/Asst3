@@ -12,9 +12,27 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <math.h>
+#include <semaphore.h>
+
+//sem_t sema;
 
 void * connection_handler(void*);
 void * accept_clients();
+//void * handle_queue();
+
+typedef struct _commandNode {
+	char mode;
+	int isWrite;
+	struct _commandNode * next;
+} commandNode;
+
+typedef struct _queue {
+	char * filePath;
+	int fd;
+	sem_t * binarySema;
+	commandNode * commandsQueued;
+	struct _queue * next;
+} queue;
 
 typedef struct _file {
 	int fd;
@@ -34,7 +52,7 @@ typedef struct _accessType {
 } accessType;
 
 typedef struct _fileParam {
-	int fd;
+	char * filePath;
 	accessType * modes;
 	struct _fileParam * next;
 } fileParam;
@@ -48,9 +66,11 @@ typedef struct _clientAccessParam {
 client * clients = NULL;
 fileParam * filesOpen = NULL;
 clientAccessParam * cParams = NULL;
+queue * fileQueue = NULL;
 
 int main(){
 	pthread_t server_thread;
+	//pthread_t qWatch;
 
 	sigset_t set;
 	sigemptyset(&set);
@@ -64,6 +84,11 @@ int main(){
 		perror("Error, could not create server thread.");
 		exit(-1);
 	}
+
+	/*if(pthread_create(&qWatch, NULL, &handle_queue, NULL) < 0){
+		perror("Error, could not create watcher thread.");
+		exit(-1);
+	}*/
 
 	pthread_join(server_thread, NULL);
 
@@ -248,14 +273,29 @@ void * connection_handler(void * sock){
 			}
 			fileParam * fo = filesOpen;
 			while(fo != NULL){
-				if(fo->fd == fileDescriptor){
+				if(strcmp(fo->filePath, data) == 0){
 					break;
 				}
 				fo = fo->next;
 			}
 			if(fo != NULL && p->param == 't'){
-				send(socket, "-1/38/File already open in Transaction mode.", 44, 0);
-				break;
+				//send(socket, "-1/38/File already open in Transaction mode.", 44, 0);
+				queue * q = fileQueue;
+				while(q != NULL){
+					if(strcmp(q->filePath, data) == 0){
+						break;
+					}
+					q = q->next;
+				}
+				if(q == NULL){
+					printf("NULL\n");
+					//bad
+				}
+				commandNode * com = malloc(sizeof(commandNode));
+				com->mode = p->param;
+				com->next = q->commandsQueued;
+				q->commandsQueued = com;
+				sem_wait(q->binarySema);
 			}
 			if(fo != NULL){
 				if(p->param == 'e'){
@@ -298,7 +338,9 @@ void * connection_handler(void * sock){
 			}
 			else{
 				fo = malloc(sizeof(fileParam));
-				fo->fd = fileDescriptor;
+				fo->filePath = calloc(strlen(data) + 1, sizeof(char));
+				strcat(fo->filePath, data);
+				fo->filePath[strlen(data)] = '\0';
 				fo->modes = malloc(sizeof(accessType));
 				fo->modes->mode = p->param;
 				if(strcmp(flags, "rw") == 0 || strcmp(flags, "wo") == 0){
@@ -357,6 +399,28 @@ void * connection_handler(void * sock){
 					default: perror("Unexpected error occurred\n"); pthread_exit(NULL); break;
 				}
 				break;
+			}
+			queue * q = fileQueue;
+			while(q != NULL){
+				if(strcmp(q->filePath, data) == 0){
+					break;
+				}
+				q = q->next;
+			}
+			if(q == NULL){
+				q = malloc(sizeof(queue));
+				q->filePath = calloc(strlen(data) + 1, sizeof(char));
+				strcat(q->filePath, data);
+				q->fd = fd;
+				q->filePath[strlen(data)] = '\0';
+				q->binarySema = malloc(sizeof(sem_t));
+				sem_init(q->binarySema, 0, 0);
+				q->next = fileQueue;
+				q->commandsQueued = NULL;
+				fileQueue = q;
+			}
+			else{
+				//bad
 			}
 
 			file * f = malloc(sizeof(file));
@@ -530,6 +594,30 @@ void * connection_handler(void * sock){
 			}
 			int result = close(fileDescriptor);
 			if(result == 0){
+				//update queue
+				queue * q = fileQueue;
+				queue * p = NULL;
+				while(q != NULL){
+					if(q->fd == fileDescriptor){
+						break;
+					}
+					p = q;
+					q = q->next;
+				}
+				if(q == NULL){
+					//bad
+				}
+				sem_post(q->binarySema);
+				if(q->commandsQueued == NULL){
+					sem_destroy(q->binarySema);
+					if(p == NULL){
+						fileQueue = q->next;
+					}
+					else{
+						p->next = q->next;
+					}
+				}
+
 				//remove file
 				if(prevFile == NULL){
 					c->files = f->next;
@@ -690,4 +778,13 @@ void * accept_clients(){
 	close(sock);
 	pthread_exit(NULL);
 }
+
+/*void * handle_queue(){
+	sem_init(&sema, 0, 0);
+	while(1){
+		sem_wait(&sema);
+		queue * q = filesOpen;
+			
+	}
+}*/
 
