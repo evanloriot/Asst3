@@ -359,7 +359,6 @@ void * connection_handler(void * sock){
 				break;
 			}
 
-			//consider handling fd already open...
 			file * f = malloc(sizeof(file));
 			f->fd = fd;
 			f->next = c->files;
@@ -371,8 +370,10 @@ void * connection_handler(void * sock){
 			sprintf(s, "-%d\n", fd);
 			if(send(socket, s, strlen(s), 0) < 0){
 				perror("Error, unable to send file descriptor to client.");
+				free(s);
 				pthread_exit(NULL);
 			}
+			free(s);
 			break;
 		}
 		case 'r':{
@@ -474,9 +475,13 @@ void * connection_handler(void * sock){
 					if(send(socket, "-1/", 3, 0) < 0){
 						perror("Error, response did not send");
 					}
+					break;
 				}
 				else{
 					perror("Unexpected Error");
+					close(socket);
+					if(data != NULL) free(data);
+					pthread_exit(NULL);
 				}
 			}
 			int length = (int)floor(log10((double)wr)) + 1;

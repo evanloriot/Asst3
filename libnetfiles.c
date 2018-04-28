@@ -92,16 +92,19 @@ int netopen(char *pathname, int flags) {
 		printf("Run netserverinit before opening.");
 		return -1;
 	}
-	char *perm = calloc(2, sizeof(char));
+	char *perm;
 	switch(flags) {
 		case O_RDONLY:
-			strcat(perm, "ro");
+			//strcat(perm, "ro");
+			perm = "ro";
 			break;
 		case O_WRONLY:
-			strcat(perm, "wo");
+			//strcat(perm, "wo");
+			perm = "wo";
 			break;
 		case O_RDWR:
-			strcat(perm, "rw");
+			//strcat(perm, "rw");
+			perm = "rw";
 			break;
 		default: {
 			printf("O_RDONLY/O_WRONLY/O_RDWR only are supported.\n");
@@ -114,7 +117,7 @@ int netopen(char *pathname, int flags) {
 	sprintf(pathlen, "%d", pnlen);
 	int totallen = 2 + 2 + 1 + strlen(pathlen) + 1 + strlen(pathname);
 	char msgrecv[256];
-	char *msg = calloc(totallen, sizeof(char));
+	char *msg = calloc(totallen+1, sizeof(char));
 	strcat(msg, "o/");
 	strcat(msg, perm);
 	strcat(msg, "/");
@@ -122,7 +125,6 @@ int netopen(char *pathname, int flags) {
 	strcat(msg, "/");
 	strcat(msg, pathname);
 	free(pathlen);
-	free(perm);
 	if(send(serverfd, msg, strlen(msg), 0) < 0) //Sends message to server
 		perror("Error");
 	free(msg);
@@ -137,6 +139,7 @@ int netopen(char *pathname, int flags) {
 	memcpy(fdes, msgrecv, i);
 	fdes[i] = '\0';
 	int fd = atoi(fdes);
+	free(fdes);
 	if(fd == -1){
 		i = 3;
 		while(isdigit(msgrecv[i])){
@@ -202,10 +205,10 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 	fildes = -1 * fildes;
 	int fdlen = (int)floor(log10((double)fildes)) + 2;
 	fildes = -1 * fildes;
-	char *fdstr = calloc(fdlen, sizeof(char));
+	char *fdstr = calloc(fdlen+1, sizeof(char));
 	sprintf(fdstr, "-%d", fildes * -1);
 	int nbytelen = (int)floor(log10((double)size)) + 1;
-	char *nbytestr = calloc(nbytelen, sizeof(char));
+	char *nbytestr = calloc(nbytelen+1, sizeof(char));
 	sprintf(nbytestr, "%d", size);	
 	strcat(msg, "r/");
 	strcat(msg, fdstr);
@@ -222,11 +225,13 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 		msgrecv[bytes] = '\0';
 		if(isFirst == 1 && strcmp(msgrecv, "-1/") == 0){
 			errno = EBADF;
+			free(data);
 			return -1;
 			break;
 		}
 		else if(strcmp(msgrecv, "000") == 0){
 			if(isFirst == 1){
+				free(data);
 				return 0;
 			}
 			else{
@@ -310,14 +315,14 @@ int netclose(int fd) {
 	fd = -1 * fd;
 	int fdlen = (int)floor(log10((double)fd)) + 2;
 	fd = -1 * fd;
-	char *fdstr = calloc(fdlen, sizeof(char));
+	char *fdstr = calloc(fdlen+1, sizeof(char));
 	sprintf(fdstr, "-%d", fd * -1);
-	char * msg = calloc(2 + strlen(fdstr) + 1, sizeof(char));
+	char * msg = calloc(2 + strlen(fdstr) + 2, sizeof(char));
 	char msgrecv[256];
 	strcat(msg, "c/");
 	strcat(msg, fdstr);
 	free(fdstr);
-	if(send(serverfd, msg, 256, strlen(msg)) < 0)
+	if(send(serverfd, msg, strlen(msg), 0) < 0)
 		perror("Error");
 	free(msg);
 	if(recv(serverfd, msgrecv, 255, 0) < 0)
