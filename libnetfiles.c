@@ -182,6 +182,16 @@ int netopen(char *pathname, int flags) {
 				free(err);
 				break;
 			}
+			case 7:{
+				char * err = calloc(8, sizeof(char));
+				memcpy(err, &msgrecv[i+1], 6);
+				err[7] = '\0';
+				if(strcmp(err, "timeout") == 0){
+					h_errno = TIMEOUT;
+				}
+				free(err);
+				break;
+			}
 			default: {
 				char * error = calloc(length+1, sizeof(char));
 				memcpy(error, &msgrecv[i+1], length);

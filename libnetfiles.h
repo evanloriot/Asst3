@@ -2,6 +2,8 @@
 #ifndef LIBNETFILES_H
 #define LIBNETFILES_H
 
+#define TIMEOUT 123
+
 int netserverinit(char *hostname, char * filemode);
 
 int connectToServer(char * hostname);
