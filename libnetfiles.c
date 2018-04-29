@@ -53,7 +53,7 @@ int netserverinit(char *hostname, char * filemode) {
 		return 0;
 	}
 	else {
-		herror("gethostbyname");
+		h_errno = HOST_NOT_FOUND;
 		return -1;
 	}
 }
@@ -69,7 +69,7 @@ int connectToServer(char* hostname) {
 	struct hostent * server;
 	server = gethostbyname(hostname);
 	if(server == NULL) {
-		printf("Error, could not get host server\n");
+		h_errno = HOST_NOT_FOUND;
 		return 1;
 	}
 
@@ -90,7 +90,7 @@ int connectToServer(char* hostname) {
 //tells server to open file and reports file descriptor
 int netopen(char *pathname, int flags) {
 	if(hst == NULL){
-		printf("Run netserverinit before opening.\n");
+		h_errno = HOST_NOT_FOUND;
 		return -1;
 	}
 	char *perm;
@@ -217,6 +217,10 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 		errno = EBADF;
 		return -1;
 	}
+	if(hst == NULL){
+		h_errno = HOST_NOT_FOUND;
+		return -1;
+	}
 	unsigned int size = (unsigned int) nbyte;
 	int serverfd = connectToServer(hst); //connect to server
 	char *msg = calloc(256, sizeof(char));
@@ -293,6 +297,10 @@ ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
 		errno = EBADF;
 		return -1;
 	}
+	if(hst == NULL){
+		h_errno = HOST_NOT_FOUND;
+		return -1;
+	}
 	unsigned int size = (unsigned int) nbyte;	
 	int serverfd = connectToServer(hst);
 	fildes = -1 * fildes;
@@ -331,6 +339,10 @@ ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
 int netclose(int fd) {
 	if(fd >= -1){
 		errno = EBADF;
+		return -1;
+	}
+	if(hst == NULL){
+		h_errno = HOST_NOT_FOUND;
 		return -1;
 	}
 	int output = -1;
