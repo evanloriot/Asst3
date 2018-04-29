@@ -90,7 +90,7 @@ int connectToServer(char* hostname) {
 //tells server to open file and reports file descriptor
 int netopen(char *pathname, int flags) {
 	if(hst == NULL){
-		printf("Run netserverinit before opening.");
+		printf("Run netserverinit before opening.\n");
 		return -1;
 	}
 	char *perm;
