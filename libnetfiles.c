@@ -184,9 +184,10 @@ int netopen(char *pathname, int flags) {
 			}
 			case 7:{
 				char * err = calloc(8, sizeof(char));
-				memcpy(err, &msgrecv[i+1], 6);
+				memcpy(err, &msgrecv[i+1], 7);
 				err[7] = '\0';
 				if(strcmp(err, "timeout") == 0){
+					errno = EWOULDBLOCK;
 					h_errno = TIMEOUT;
 				}
 				free(err);

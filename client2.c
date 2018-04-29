@@ -15,6 +15,9 @@ int main(){
 	//netserverinit("ls.cs.rutgers.edu", "exclusive");
 	int fd = netopen("../test/test.c", O_RDWR);
 	//int fd = netopen("../../Desktop/test/test.c", O_RDONLY);
+	perror("Error (errno)");
+	herror("Error (herrno)");
+
 	printf("FD: %d\n", fd);
 	//char buff[256];
 	//int r;

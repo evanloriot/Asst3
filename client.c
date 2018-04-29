@@ -25,8 +25,8 @@ int main(){
 	//printf("\n");
 	//int w = netwrite(fd, "123", strlen("123"));
 	//printf("W: %d\n", w);
-	sleep(1);
-	netclose(fd);
+	//sleep(1);
+	//netclose(fd);
 	
 	return 1;
 }
