@@ -74,3 +74,18 @@ handling a client. Then close the socket.
 For the file_queue watcher, we initialize a mutex, and while true, sleep 3 seconds and then get time, and then for each file in queue, check their
 queued commands if the time they were put in is greater than two seconds from time stored in variable. If yes, then mark invalid and post to that files
 semaphore. Once all files have been checked unlock and sleep. 
+
+Libnetfiles.c:
+
+	netserverinit takes the hostname and filemode, checks for the existence of the server, and also sends the mode that the user wishes to access the file in. It returns a server file descriptor to be used 		to connect, and sets a global hostname string that is used in the connectToServer method. If the server is not found, or an error occurs during communication between the client and the server, it returns 		-1.
+
+	connectToServer is a convenience function that takes a string hostname and makes a connection to the server, returning a file descriptor or -1 on error. This method is called at the start of netopen, 	netread, netwrite, and netclose, as well as during netserverinit to send the file mode. 
+
+	netopen takes a file descriptor, buffer, and number of bytes, then creates a message in the format "o/permission/hostnamelength/hostname" and sends it to the server. It receives either a file descriptor 		or an error message. In the former case, it returns the file descriptor to be used. In the latter, netopen sets errno accordingly.
+	
+	netread takes a file descriptor, buffer, and number of bytes, then creates a message in the format "r/filedescriptor/numberofbytes", and sends it to the server. It receives the number of bytes read and 		updates the buffer with the data read, or sets errno accordingly. The function returns the number of bytes read, or -1 on error.
+
+	netwrite takes a file descriptor, buffer, and number of bytes, then creates a message in the format "r/filedescriptor/numberofbytes", and sends it to the server. It returns the number of bytes written,
+	or sets errno accordingly and returns.
+
+	netclose takes a file descriptor, then closes the socket and returns 0 or -1 based on success or failure.
