@@ -10,21 +10,26 @@
 #include "libnetfiles.h"
 
 int main(){
-	//netserverinit("ls.cs.rutgers.edu", "unrestricted");
-	netserverinit("ls.cs.rutgers.edu", "transaction");
+	netserverinit("ls.cs.rutgers.edu", "unrestricted");
+	//netserverinit("ls.cs.rutgers.edu", "transaction");
 	//netserverinit("ls.cs.rutgers.edu", "exclusive");
-	int fd = netopen("../../Desktop/test/test.c", O_RDWR);
+	int fd = netopen("./test", O_RDWR);
 	//int fd = netopen("../../Desktop/test/test.c", O_RDONLY);
 	printf("FD: %d\n", fd);
+	perror("ERRORFD");
 	//char buff[256];
 	//int r;
-	//while((r = netread(fd, &buff, 255)) > 0){
+	//while((r = netread(-9, &buff, 255)) > 0){
 	//	buff[r] = '\0';
 	//	printf("%s", buff);
 	//}
-	//int w = netwrite(fd, "123", strlen("123"));
+	//perror("ErrorREAD");
+	//printf("\n");
+	//int w = netwrite(-9, "123", strlen("123"));
+	//perror("ErrorWRITE");
 	//printf("W: %d\n", w);
-	netclose(fd);
+	//netclose(-9);
+	//perror("ErrorCLOSE");
 	
 	return 1;
 }

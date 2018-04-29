@@ -32,7 +32,8 @@ int netserverinit(char *hostname, char * filemode) {
 			mode[0] = 't';
 		}
 		else{
-			mode[0] = 'u';
+			printf("Only file modes unrestricted, exclusive, and transaction are supported.\n");
+			return -1;
 		}
 		mode[1] = '\0';
 		int fd = connectToServer(hst);
@@ -45,10 +46,7 @@ int netserverinit(char *hostname, char * filemode) {
 		if(recv(fd, response, 256, 0) < 0) 
 			perror("Error");
 
-		if(strcmp(response, "success") == 0) {
-			printf("Successfully connected to server\n");
-		}
-		else{
+		if(strcmp(response, "success") != 0) {
 			perror("Error");
 			return -1;
 		}
@@ -79,7 +77,7 @@ int connectToServer(char* hostname) {
 	bzero((char*) &serverAddress, sizeof(serverAddress));
 	serverAddress.sin_family = AF_INET;
 	bcopy((char*) server->h_addr, (char*) &serverAddress.sin_addr.s_addr, server->h_length);
-	serverAddress.sin_port = htons(14315);
+	serverAddress.sin_port = htons(14314);
 	if(connect(sock, (struct sockaddr*) &serverAddress, sizeof(serverAddress)) < 0){
 		perror("Error");
 		close(sock);
@@ -194,7 +192,10 @@ int netopen(char *pathname, int flags) {
 				return fd;
 			}
 		}
-		perror("Error, file not found");
+	}
+	if(fd == 0){
+		//atoi didnt work...
+		return -1;
 	}
 	close(serverfd);
 	return fd;
@@ -203,7 +204,7 @@ int netopen(char *pathname, int flags) {
 //tells server to read file and reports number of bytes read
 ssize_t netread(int fildes, void *buf, size_t nbyte) {
 	if(fildes >= -1){
-		//need to print something?
+		errno = EBADF;
 		return -1;
 	}
 	unsigned int size = (unsigned int) nbyte;
@@ -279,7 +280,7 @@ ssize_t netread(int fildes, void *buf, size_t nbyte) {
 
 ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
 	if(fildes >= -1){
-		//need to print something?
+		errno = EBADF;
 		return -1;
 	}
 	unsigned int size = (unsigned int) nbyte;	
@@ -319,7 +320,7 @@ ssize_t netwrite(int fildes, const void *buf, size_t nbyte) {
 
 int netclose(int fd) {
 	if(fd >= -1){
-		//need to print something?
+		errno = EBADF;
 		return -1;
 	}
 	int output = -1;

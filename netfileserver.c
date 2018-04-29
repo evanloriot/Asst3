@@ -850,7 +850,7 @@ void * accept_clients(){
 	bzero((char*) &server, sizeof(server));
 	server.sin_family = AF_INET;
 	server.sin_addr.s_addr = INADDR_ANY;
-	server.sin_port = htons(14315);
+	server.sin_port = htons(14314);
 	
 	if(bind(sock, (struct sockaddr *) &server, sizeof(server)) < 0){
 		perror("Error, unable to bind socket to address.");

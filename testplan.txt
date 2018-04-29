@@ -1,0 +1,57 @@
+For our project, we completed the base program and extensions A, C, and D. I will break down how we will test per section:
+
+Base Program: 
+ - netopen: 
+	case0: positive/0/-1 file descriptor --> result should return -1 and errno should be set to EBADF
+	case1: invalid flag --> results should return -1 and report rdonly/rdwr/wronly supported
+	case2: read only file opened in write --> -1 and errno = EACCES
+	case3: open directory --> -1 and errno = EISDIR
+	case4: file does not exist --> -1 and errno = ENOENT
+	case5: normal use case --> return -(fd+1)
+ - netread: 
+	case0: fd >= -1 --> -1 and errno = EBADF
+	case1: fd not open --> -1 and errno = EBADF
+	case2: normal read --> return bytesRead
+	case3: read in a loop --> should work normally in that each read copies into buffer each time consecutively. 
+	case4: file descriptor that you do not open but is open by a client --> return -1 and errno should be set to EBADF
+ - netwrite:
+	case0: fd >= -1 --> -1 and errno = EBADF
+	case1: fd not open --> -1 and errno = EBADF
+	case2: normal write --> return number of bytes written
+	case3: file descriptor that you do not open but is open by a client --> return -1 and errno should be set to EBADF
+ - netclose:
+	case0: fd >= -1 --> -1 and errno = EBADF
+	case1: fd not open --> -1 and errno = EBADF
+	case2: normal close --> return 0
+	case3: file descriptor that you do not open but is open by a client --> return -1 and errno should be set to EBADF
+ - netserverinit: 
+	case0: host exists --> return 0
+	case1: host does not exist --> return -1 and herror set to ????
+
+
+Extension A: 
+ - netserverinit: 
+	case0: normal filemode sent --> return 0
+	case1: invalid filemode --> return -1 and notify
+ - netopen: (assume order client1 before client2; also assume read == RDONLY and write == RDWR/WRONLY)
+	case0: client1 opens file in unrestricted and client2 opens in unrestricted --> both receive fd
+	case1: client1 opens file in unrestricted write and client2 opens in exclusive write --> client1 receives fd and client2 waits because of Extension C (D causes timeout)
+	case2: client1 opens file in unrestricted read and client2 opens in exclusive write --> both receive fd
+	case3: client1 opens file in unrestricted write and client2 opens in exclusive read --> both receive fd
+	case4: client1 opens file in unrestricted read and client2 opens in exclusive read --> both receive fd
+	case5: client1 opens file in unrestricted read/write and client2 opens in transaction --> client1 receives fd and client2 waits because of Extension C (D causes timeout)
+	case6: client1 opens file in exclusive write and client2 opens in unrestricted write --> client1 receives fd and client2 waits because of Extension C (D causes timeout)
+	case7: client1 opens file in exclusive write and client2 opens in unrestricted read --> both receive fd
+	case8: client1 opens file in exclusive read and client2 opens in unrestricted read/write --> both receive fd
+	case9: client1 opens file in exclusive read/write and client2 opens in transaction read/write --> client1 receives fd and client2 waits because of Extension C (D causes timeout)
+	case10: client1 opens file in transaction read/write and client2 opens in unrestricted/exclusive read/write --> client1 receives fd and client2 waits because of Extension C (D causes timeout)
+ - netread/write/close remain same
+
+
+Extension C: 
+	all same test cases as A. Note that these tests should wait on server (NOTE: D will cause timeout to occur)
+
+Extension D: 
+	all same test cases as A. Timeouts occur after 2 seconds.
+
+
