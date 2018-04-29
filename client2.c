@@ -10,8 +10,8 @@
 #include "libnetfiles.h"
 
 int main(){
-	netserverinit("ls.cs.rutgers.edu", "unrestricted");
-	//netserverinit("ls.cs.rutgers.edu", "transaction");
+	//netserverinit("ls.cs.rutgers.edu", "unrestricted");
+	netserverinit("ls.cs.rutgers.edu", "transaction");
 	//netserverinit("ls.cs.rutgers.edu", "exclusive");
 	int fd = netopen("../test/test.c", O_RDWR);
 	//int fd = netopen("../../Desktop/test/test.c", O_RDONLY);
@@ -25,7 +25,6 @@ int main(){
 	//printf("\n");
 	//int w = netwrite(fd, "123", strlen("123"));
 	//printf("W: %d\n", w);
-	sleep(1);
 	netclose(fd);
 	
 	return 1;
