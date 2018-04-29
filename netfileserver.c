@@ -13,9 +13,13 @@
 #include <fcntl.h>
 #include <math.h>
 #include <semaphore.h>
+#include <time.h>
 
 void * connection_handler(void*);
 void * accept_clients();
+void * handle_queue();
+
+pthread_mutex_t lock;
 
 typedef struct _file {
 	int fd;
@@ -38,6 +42,8 @@ typedef struct _accessType {
 typedef struct _commandNode{
 	char mode;
 	int isWrite;
+	time_t * timer;
+	int isValid;
 	struct _commandNode * next;
 } commandNode;
 
@@ -61,6 +67,7 @@ clientAccessParam * cParams = NULL;
 
 int main(){
 	pthread_t server_thread;
+	pthread_t qWatch;
 
 	sigset_t set;
 	sigemptyset(&set);
@@ -72,6 +79,11 @@ int main(){
 	
 	if(pthread_create(&server_thread, NULL, &accept_clients, NULL) < 0){
 		perror("Error, could not create server thread.");
+		exit(-1);
+	}
+
+	if(pthread_create(&qWatch, NULL, &handle_queue, NULL) < 0){
+		perror("Error, could not create watcher thread.");
 		exit(-1);
 	}
 
@@ -267,6 +279,7 @@ void * connection_handler(void * sock){
 				fo = fo->next;
 			}
 			if(fo != NULL && p->param == 't'){
+				pthread_mutex_lock(&lock);
 				commandNode * com = malloc(sizeof(commandNode));
 				com->mode = p->param;
 				if(strcmp(flags, "rw") == 0 || strcmp(flags, "wo") == 0){
@@ -276,8 +289,19 @@ void * connection_handler(void * sock){
 					com->isWrite = 0;
 				}
 				com->next = fo->queue;
+				com->isValid = 1;
+				com->timer = malloc(sizeof(time_t));
+				time(com->timer);
 				fo->queue = com;
+				pthread_mutex_unlock(&lock);
+
 				sem_wait(fo->binarySem);
+				if(com->isValid == 0){
+					if(send(socket, "-1/7/timeout", strlen("-1/7/timeout"), 0) < 0){
+						perror("Error");
+					}
+					pthread_exit(NULL);
+				}
 				continue;
 				//send(socket, "-1/38/File already open in Transaction mode.", 44, 0);
 				break;
@@ -292,6 +316,7 @@ void * connection_handler(void * sock){
 						modes = modes->next;
 					}
 					if(modes != NULL){
+						pthread_mutex_lock(&lock);
 						commandNode * com = malloc(sizeof(commandNode));
 						com->mode = p->param;
 						if(strcmp(flags, "rw") == 0 || strcmp(flags, "wo") == 0){
@@ -301,8 +326,18 @@ void * connection_handler(void * sock){
 							com->isWrite = 0;
 						}
 						com->next = fo->queue;
+						com->isValid = 1;
+						com->timer = malloc(sizeof(time_t));
+						time(com->timer);
 						fo->queue = com;
+						pthread_mutex_unlock(&lock);
 						sem_wait(fo->binarySem);
+						if(com->isValid == 0){
+							if(send(socket, "-1/7/timeout", strlen("-1/7/timeout"), 0) < 0){
+								perror("Error");
+							}
+							pthread_exit(NULL);
+						}
 						continue;
 						//send(socket, "-1/32/File already open in write mode.", 38, 0);
 						//pthread_exit(NULL);
@@ -312,6 +347,7 @@ void * connection_handler(void * sock){
 					accessType * modes = fo->modes;
 					while(modes != NULL){
 						if(modes->mode == 'e' && modes->isWrite == 1){
+							pthread_mutex_lock(&lock);
 							commandNode * com = malloc(sizeof(commandNode));
 							com->mode = p->param;
 							if(strcmp(flags, "rw") == 0 || strcmp(flags, "wo") == 0){
@@ -321,14 +357,25 @@ void * connection_handler(void * sock){
 								com->isWrite = 0;
 							}
 							com->next = fo->queue;
+							com->isValid = 1;
+							com->timer = malloc(sizeof(time_t));
+							time(com->timer);
 							fo->queue = com;
+							pthread_mutex_unlock(&lock);
 							sem_wait(fo->binarySem);
+							if(com->isValid == 0){
+								if(send(socket, "-1/7/timeout", strlen("-1/7/timeout"), 0) < 0){
+									perror("Error");
+								}
+								pthread_exit(NULL);
+							}
 							continue;
 							//char * msg = "-1/54/File already open in write mode with Exclusive access.";
 							//send(socket, msg, strlen(msg), 0);
 							//break;
 						}
 						else if(modes->mode == 't'){
+							pthread_mutex_lock(&lock);
 							commandNode * com = malloc(sizeof(commandNode));
 							com->mode = p->param;
 							if(strcmp(flags, "rw") == 0 || strcmp(flags, "wo") == 0){
@@ -338,8 +385,18 @@ void * connection_handler(void * sock){
 								com->isWrite = 0;
 							}
 							com->next = fo->queue;
+							com->isValid = 1;
+							com->timer = malloc(sizeof(time_t));
+							time(com->timer);
 							fo->queue = com;
+							pthread_mutex_unlock(&lock);
 							sem_wait(fo->binarySem);
+							if(com->isValid == 0){
+								if(send(socket, "-1/7/timeout", strlen("-1/7/timeout"), 0) < 0){
+									perror("Error");
+								}
+								pthread_exit(NULL);
+							}
 							continue;
 							//send(socket, "-1/38/File already open in Transaction mode.", 44, 0);
 							//break;
@@ -412,6 +469,7 @@ void * connection_handler(void * sock){
 				break;
 			}
 			if(fo == NULL){
+				pthread_mutex_lock(&lock);
 				fo = malloc(sizeof(fileParam));
 				fo->binarySem = malloc(sizeof(sem_t));
 				sem_init(fo->binarySem, 0, 0);
@@ -431,13 +489,16 @@ void * connection_handler(void * sock){
 				fo->queue = NULL;
 				fo->next = filesOpen;
 				filesOpen = fo;
+				pthread_mutex_unlock(&lock);
 			}
 			else{
+				pthread_mutex_lock(&lock);
 				accessType * m = malloc(sizeof(accessType));
 				m->fd = fd;
 				m->mode = p->param;
 				m->next = fo->modes;
 				fo->modes = m;
+				pthread_mutex_unlock(&lock);
 			}
 			
 			file * f = malloc(sizeof(file));
@@ -609,9 +670,11 @@ void * connection_handler(void * sock){
 				}
 				break;
 			}
+			
 			int result = close(fileDescriptor);
 			if(result == 0){
 				//update filesOpen
+				pthread_mutex_lock(&lock);
 				fileParam * fo = filesOpen;
 				fileParam * prevfo = NULL;
 				while(fo != NULL){
@@ -657,6 +720,7 @@ void * connection_handler(void * sock){
 						fo->filePath = "";
 					}
 				}
+				pthread_mutex_unlock(&lock);
 
 				//remove file
 				if(prevFile == NULL){
@@ -817,5 +881,35 @@ void * accept_clients(){
 
 	close(sock);
 	pthread_exit(NULL);
+}
+
+void * handle_queue(){
+	if(pthread_mutex_init(&lock, NULL) != 0){
+		printf("Mutex initialization failed.");
+		pthread_exit(NULL);
+	}
+	time_t timer;
+	while(1){
+		time(&timer);
+		pthread_mutex_lock(&lock);
+		fileParam * f = filesOpen;
+		while(f != NULL){
+			int doPost = 0;
+			commandNode * c = f->queue;
+			while(c != NULL){
+				if(difftime(timer, *(c->timer)) >= 2){
+					c->isValid = 0;
+					doPost = 1;
+				}
+				c = c->next;
+			}
+			if(doPost == 1){
+				sem_post(f->binarySem);
+			}
+			f = f->next;
+		}
+		pthread_mutex_unlock(&lock);
+		sleep(3);
+	}
 }
 

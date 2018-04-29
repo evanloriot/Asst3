@@ -11,10 +11,11 @@
 
 int main(){
 	//netserverinit("ls.cs.rutgers.edu", "unrestricted");
-	//netserverinit("ls.cs.rutgers.edu", "transaction");
-	netserverinit("ls.cs.rutgers.edu", "exclusive");
-	//int fd = netopen("../test/test.c", O_RDWR);
-	//printf("FD: %d\n", fd);
+	netserverinit("ls.cs.rutgers.edu", "transaction");
+	//netserverinit("ls.cs.rutgers.edu", "exclusive");
+	int fd = netopen("../../Desktop/test/test.c", O_RDWR);
+	//int fd = netopen("../../Desktop/test/test.c", O_RDONLY);
+	printf("FD: %d\n", fd);
 	//char buff[256];
 	//int r;
 	//while((r = netread(fd, &buff, 255)) > 0){
@@ -23,7 +24,7 @@ int main(){
 	//}
 	//int w = netwrite(fd, "123", strlen("123"));
 	//printf("W: %d\n", w);
-	netclose(-7);
+	netclose(fd);
 	
 	return 1;
 }
