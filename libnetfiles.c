@@ -40,6 +40,7 @@ int netserverinit(char *hostname, char * filemode) {
 		int fd = connectToServer(hst);
 		if(fd < 0){
 			perror("Error");
+			hst = NULL;
 			return -1;
 		}
 		if(write(fd, mode, strlen(mode)) < 0)
@@ -49,12 +50,14 @@ int netserverinit(char *hostname, char * filemode) {
 
 		if(strcmp(response, "success") != 0) {
 			perror("Error");
+			hst = NULL;
 			return -1;
 		}
 		return 0;
 	}
 	else {
 		h_errno = HOST_NOT_FOUND;
+		hst = NULL;
 		return -1;
 	}
 }
@@ -71,7 +74,7 @@ int connectToServer(char* hostname) {
 	server = gethostbyname(hostname);
 	if(server == NULL) {
 		h_errno = HOST_NOT_FOUND;
-		return 1;
+		return -1;
 	}
 
 	struct sockaddr_in serverAddress;
