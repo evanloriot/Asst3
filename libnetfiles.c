@@ -33,6 +33,7 @@ int netserverinit(char *hostname, char * filemode) {
 		}
 		else{
 			printf("Only file modes unrestricted, exclusive, and transaction are supported.\n");
+			hst = NULL;
 			return -1;
 		}
 		mode[1] = '\0';
