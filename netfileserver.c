@@ -307,7 +307,7 @@ void * connection_handler(void * sock){
 				break;
 			}
 			if(fo != NULL){
-				if(p->param == 'e'){
+				if(p->param == 'e' && (strcmp(flags, "rw") == 0 || strcmp(flags, "wo") == 0)){
 					accessType * modes = fo->modes;
 					while(modes != NULL){
 						if(modes->isWrite == 1){
